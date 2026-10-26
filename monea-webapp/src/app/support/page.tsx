@@ -20,14 +20,16 @@ export default function SupportPage() {
                 <meta property="og:url" content="https://moneoez.com/support" />
                 <meta property="og:title" content="MONEO | Support Center | ជំនួយ និងការគាំទ្រ" />
                 <meta property="og:description" content="ទទួលជំនួយពី MONEO សម្រាប់ការបង្កើតធៀបការ និងការគ្រប់គ្រងភ្ញៀវ។" />
-                <meta property="og:image" content="https://moneoez.com/icons/logomoneo.jpg" />
-                <meta property="og:image:type" content="image/jpeg" />
+                <meta property="og:image" content="https://moneoez.com/icons/SE.png" />
+                <meta property="og:image:type" content="image/png" />
+                <meta property="og:image:width" content="1200" />
+                <meta property="og:image:height" content="630" />
                 <meta property="og:image:alt" content="MONEO support center" />
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:url" content="https://moneoez.com/support" />
                 <meta name="twitter:title" content="MONEO | Support Center | ជំនួយ និងការគាំទ្រ" />
                 <meta name="twitter:description" content="ទទួលជំនួយពី MONEO សម្រាប់ការបង្កើតធៀបការ និងការគ្រប់គ្រងភ្ញៀវ។" />
-                <meta name="twitter:image" content="https://moneoez.com/icons/logomoneo.jpg" />
+                <meta name="twitter:image" content="https://moneoez.com/icons/SE.png" />
                 <meta name="twitter:image:alt" content="MONEO support center" />
             </Helmet>
             <PageTransition>

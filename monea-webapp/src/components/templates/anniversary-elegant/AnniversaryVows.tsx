@@ -13,8 +13,12 @@ export default function AnniversaryVows({ wedding }: { wedding: WeddingData }) {
     const groomVows = settings?.groomVows || "អរគុណដែលបានចូលមកក្នុងជីវិតបង និងតែងតែជាកម្លាំងចិត្តដ៏រឹងមាំសម្រាប់បងគ្រប់ពេលវេលា។";
     const brideVows = settings?.brideVows || "អរគុណសម្រាប់ការស្រលាញ់ ការមើលថែ និងភាពកក់ក្តៅដែលបងតែងតែផ្តល់ឱ្យអូនជារៀងរាល់ថ្ងៃ។";
 
-    const groomPhoto = getWeddingSectionPhoto(wedding, "groom")?.url || wedding.groomPhoto || '/images/couple.webp';
-    const bridePhoto = getWeddingSectionPhoto(wedding, "bride")?.url || wedding.bridePhoto || '/images/couple.webp';
+    const groomPhoto = getWeddingSectionPhoto(wedding, "groom")?.url
+        || wedding.groomPhoto
+        || (!wedding.previewUploadedImagesOnly ? '/images/couple.webp' : undefined);
+    const bridePhoto = getWeddingSectionPhoto(wedding, "bride")?.url
+        || wedding.bridePhoto
+        || (!wedding.previewUploadedImagesOnly ? '/images/couple.webp' : undefined);
 
     return (
         <section className="py-16 px-4 bg-[#F1ECE5] font-kantumruy relative overflow-hidden" id="vows">
@@ -45,7 +49,7 @@ export default function AnniversaryVows({ wedding }: { wedding: WeddingData }) {
                         
                         <div className="flex items-center gap-3.5 mb-3">
                             <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-amber-300 shadow-sm shrink-0">
-                                <img src={groomPhoto} alt={wedding.groomName} className="w-full h-full object-cover" />
+                                {groomPhoto && <img src={groomPhoto} alt={wedding.groomName} className="w-full h-full object-cover" />}
                             </div>
                             <div>
                                 <h4 className="text-sm sm:text-base font-khmer-moul text-[#3B0764]">
@@ -72,7 +76,7 @@ export default function AnniversaryVows({ wedding }: { wedding: WeddingData }) {
 
                         <div className="flex items-center gap-3.5 mb-3">
                             <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-amber-300 shadow-sm shrink-0">
-                                <img src={bridePhoto} alt={wedding.brideName} className="w-full h-full object-cover" />
+                                {bridePhoto && <img src={bridePhoto} alt={wedding.brideName} className="w-full h-full object-cover" />}
                             </div>
                             <div>
                                 <h4 className="text-sm sm:text-base font-khmer-moul text-[#3B0764]">

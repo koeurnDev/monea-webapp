@@ -20,6 +20,7 @@ import {
     ChevronDown,
     User,
     Share2,
+    ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MoneaLogo } from "@/components/ui/MoneaLogo";
@@ -59,7 +60,8 @@ export function AdminSidebar({ onCloseMobile }: AdminSidebarProps) {
         "/admin/master/templates",
         "/admin/master/audit",
         "/admin/master/analytics",
-        "/admin/master/social-links"
+        "/admin/master/social-links",
+        "/admin/master/media-validator"
     ]);
 
     const handleLogout = async () => {
@@ -79,7 +81,7 @@ export function AdminSidebar({ onCloseMobile }: AdminSidebarProps) {
                 { href: "/admin/master", label: "ផ្ទាំងទូទៅ", shortLabel: "ទូទៅ", enLabel: "Overview", icon: LayoutDashboard, exact: true },
                 { href: "/admin/master/weddings", label: "កម្មវិធីមង្គលការ", shortLabel: "មង្គលការ", enLabel: "Weddings", icon: PartyPopper },
                 { href: "/admin/master/users", label: "អ្នកប្រើប្រាស់", shortLabel: "អ្នកប្រើ", enLabel: "Users", icon: Users },
-                { href: "/admin/master/payments", label: "ការទូទាត់ប្រាក់", shortLabel: "ទូទាត់", enLabel: "Payments", icon: DollarSign },
+                { href: "/admin/master/payments", label: "ការលក់ Template", shortLabel: "លក់ Template", enLabel: "Template Sales", icon: DollarSign },
             ]
         },
         {
@@ -91,6 +93,8 @@ export function AdminSidebar({ onCloseMobile }: AdminSidebarProps) {
                 { href: "/admin/master/audit", label: "កំណត់ត្រាសវនកម្ម", shortLabel: "សវនកម្ម", enLabel: "Audit Logs", icon: FileText },
                 { href: "/admin/master/maintenance", label: "ការថែទាំប្រព័ន្ធ", shortLabel: "ថែទាំ", enLabel: "Maintenance", icon: Wrench },
                 { href: "/admin/master/templates", label: "គ្រប់គ្រង Template", shortLabel: "Template", enLabel: "Templates", icon: LayoutGrid },
+                { href: "/admin/master/media-validator", label: "ពិនិត្យរូបភាព", shortLabel: "រូបភាព", enLabel: "Media Validator", icon: ImageIcon },
+                { href: "/dashboard/design?templatePreview=modern-minimal", label: "Demo Preview Template", shortLabel: "Demo Preview", enLabel: "Demo Preview", icon: ExternalLink },
                 { href: "/admin/master/analytics", label: "ស្ថិតិទូទាំងប្រទេស", shortLabel: "ស្ថិតិ", enLabel: "Analytics", icon: TrendingUp },
                 { href: "/admin/master/social-links", label: "បណ្តាញសង្គម", shortLabel: "Social", enLabel: "Social Media", icon: Share2 },
             ]

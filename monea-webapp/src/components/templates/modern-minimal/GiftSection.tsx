@@ -7,10 +7,18 @@ import { getConfiguredPaymentAccounts } from "../shared/weddingPhotos";
 export const GiftSection = ({ wedding }: { wedding: WeddingData }) => {
     const banks = getConfiguredPaymentAccounts(wedding.themeSettings?.giftRegistry || wedding.themeSettings?.bankAccounts);
     if (banks.length === 0) return null;
+    const labels = wedding.themeSettings?.customLabels;
 
     return (
         <section className="py-20 md:py-28 bg-white relative border-t border-slate-100" id="gift-modern">
             <div className="max-w-4xl mx-auto px-6 text-center">
+                {(labels?.giftTitle || labels?.giftSubtitle || labels?.giftBadge) && (
+                    <div className="mb-8 space-y-3">
+                        <h2 className="font-khmer-moul text-2xl text-slate-800">{labels.giftTitle || "ចំណងដៃ"}</h2>
+                        {labels.giftSubtitle && <p className="mx-auto max-w-xl whitespace-pre-line text-sm leading-7 text-slate-600">{labels.giftSubtitle}</p>}
+                        {labels.giftBadge && <p className="text-xs font-semibold text-slate-500">{labels.giftBadge}</p>}
+                    </div>
+                )}
                 {/* Payment accounts */}
                 <div className="flex flex-wrap justify-center gap-8">
                     {banks.map((bank: any, idx: number) => {

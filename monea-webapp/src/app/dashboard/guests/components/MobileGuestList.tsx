@@ -39,7 +39,7 @@ export function MobileGuestList({
 
     if (loading) {
         return (
-            <div className="h-64 flex flex-col items-center justify-center gap-4">
+            <div className="md:hidden h-64 flex flex-col items-center justify-center gap-4">
                 <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
                 <span className="text-[12px] font-black text-muted-foreground/50 uppercase tracking-widest">{t("guests.loading")}</span>
             </div>
@@ -48,7 +48,7 @@ export function MobileGuestList({
 
     if (guests.length === 0) {
         return (
-            <div className="h-[300px] flex flex-col items-center justify-center text-center space-y-5 px-6 animate-in fade-in zoom-in-95 duration-500">
+            <div className="md:hidden h-[300px] flex flex-col items-center justify-center text-center space-y-5 px-6 animate-in fade-in zoom-in-95 duration-500">
                 <div className="w-20 h-20 bg-accent rounded-full flex items-center justify-center border border-primary/20">
                     <Users className="w-8 h-8 text-primary/60" />
                 </div>

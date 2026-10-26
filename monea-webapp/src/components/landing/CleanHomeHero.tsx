@@ -85,14 +85,14 @@ export function CleanHomeHero() {
                                     value={groom}
                                     onChange={(e) => setGroom(e.target.value)}
                                     placeholder="កូនកំលោះ"
-                                    className="h-9 px-3 text-xs font-bold bg-background rounded-xl border border-border focus:border-rose-500 focus:outline-none"
+                                    className="h-9 px-3 text-xs font-bold bg-background rounded-xl border border-border focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 />
                                 <input
                                     type="text"
                                     value={bride}
                                     onChange={(e) => setBride(e.target.value)}
                                     placeholder="កូនក្រមុំ"
-                                    className="h-9 px-3 text-xs font-bold bg-background rounded-xl border border-border focus:border-rose-500 focus:outline-none"
+                                    className="h-9 px-3 text-xs font-bold bg-background rounded-xl border border-border focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 />
                             </div>
                         </motion.div>
@@ -106,7 +106,7 @@ export function CleanHomeHero() {
                         >
                             <Link
                                 to={AUTH_URLS.SIGN_UP}
-                                className="w-full sm:w-auto flex-1 h-12 px-7 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold text-xs shadow-lg shadow-rose-600/25 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                                className="w-full sm:w-auto flex-1 h-12 px-7 rounded-xl border border-primary bg-primary text-primary-foreground font-bold text-xs shadow-lg shadow-primary/15 flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all"
                             >
                                 <span>បង្កើតធៀបការឥឡូវនេះ</span>
                                 <ArrowRight className="w-4 h-4" />

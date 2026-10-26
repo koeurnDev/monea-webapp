@@ -1,20 +1,26 @@
 import React, { useEffect, useState } from "react";
 import { ImageOff } from "lucide-react";
 
-import { buildSrcSet, MEDIA_WIDTHS, optimizeMediaUrl } from "@/lib/media";
+import { buildSrcSet, getOriginalMediaUrl, MEDIA_WIDTHS, optimizeMediaUrl } from "@/lib/media";
 
 type PhotoImageProps = React.ImgHTMLAttributes<HTMLImageElement>;
 
 export function PhotoImage({ src, alt, className, onError, loading, decoding, sizes, srcSet, ...props }: PhotoImageProps) {
     const [hasError, setHasError] = useState(false);
+    const [useOriginal, setUseOriginal] = useState(false);
 
     useEffect(() => {
         setHasError(false);
+        setUseOriginal(false);
     }, [src]);
 
-    const optimizedSrc = typeof src === "string" ? optimizeMediaUrl(src, { width: 1200, quality: 78 }) : src;
-    const responsiveSrcSet = srcSet ?? (typeof src === "string"
-        ? buildSrcSet(src, MEDIA_WIDTHS.lightbox, { quality: 78 })
+    const originalSrc = typeof src === "string" ? getOriginalMediaUrl(src) : null;
+    const imageSource = originalSrc || src;
+    const optimizedSrc = typeof imageSource === "string"
+        ? optimizeMediaUrl(imageSource, { width: 1200, quality: 78 })
+        : imageSource;
+    const responsiveSrcSet = srcSet ?? (typeof imageSource === "string"
+        ? buildSrcSet(imageSource, MEDIA_WIDTHS.lightbox, { quality: 78 })
         : undefined);
 
     return (
@@ -22,15 +28,20 @@ export function PhotoImage({ src, alt, className, onError, loading, decoding, si
             <img
                 loading={loading ?? "lazy"}
                 decoding={decoding ?? "async"}
-                sizes={sizes ?? "100vw"}
-                srcSet={responsiveSrcSet}
+                sizes={sizes ?? "(max-width: 430px) 100vw, 430px"}
+                srcSet={useOriginal ? undefined : responsiveSrcSet}
                 {...props}
-                src={optimizedSrc}
+                src={useOriginal ? originalSrc || optimizedSrc : optimizedSrc}
                 alt={alt}
                 className={className}
                 aria-hidden={hasError || undefined}
                 onError={(event) => {
-                    setHasError(true);
+                    if (!useOriginal && originalSrc && originalSrc !== optimizedSrc) {
+                        setUseOriginal(true);
+                        event.currentTarget.srcset = "";
+                    } else {
+                        setHasError(true);
+                    }
                     onError?.(event);
                 }}
             />

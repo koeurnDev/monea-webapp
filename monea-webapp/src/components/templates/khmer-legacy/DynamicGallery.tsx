@@ -45,7 +45,9 @@ export function DynamicGallery({
         });
     }
 
-    const titleText = wedding.themeSettings?.customLabels?.galleryTitle || "វិចិត្រសាល";
+    const titleText = wedding.themeSettings?.customLabels?.galleryTitle
+        || wedding.themeSettings?.customLabels?.gallery_title
+        || "វិចិត្រសាល";
     const galleryStyle = getGalleryDisplayStyle(wedding.themeSettings?.galleryStyle);
 
     return (

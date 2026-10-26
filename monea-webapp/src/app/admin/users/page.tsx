@@ -29,6 +29,7 @@ export default function AdminUsersPage() {
     const [selectedRole, setSelectedRole] = useState<string>("");
     const [savingRole, setSavingRole] = useState(false);
     const [deletingUser, setDeletingUser] = useState(false);
+    const [unlockingTemplateKey, setUnlockingTemplateKey] = useState<string | null>(null);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -180,6 +181,148 @@ export default function AdminUsersPage() {
             showToast({ title: "Error", description: "Unexpected error during restoration.", type: "info" });
         } finally {
             setSavingRole(false);
+        }
+    };
+
+    const handleUnlockTemplate = async (weddingId: string, templateId: string) => {
+        if (!selectedUserDetails || !window.confirm("តើអ្នកបានទទួលប្រាក់សម្រាប់ Template នេះរួចហើយឬនៅ? បញ្ជាក់ដើម្បីដោះសោ។")) {
+            return;
+        }
+
+        const key = `${weddingId}:${templateId}`;
+        setUnlockingTemplateKey(key);
+        try {
+            const response = await fetch(`/api/admin/users/${selectedUserDetails.id}/template-license`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ weddingId, templateId }),
+            });
+            const result = await response.json();
+
+            if (!response.ok) {
+                showToast({
+                    title: "បរាជ័យ",
+                    description: result.error || "មិនអាចដោះសោ Template បានទេ។",
+                    type: "info",
+                });
+                return;
+            }
+
+            setSelectedUserDetails((current: any) => ({
+                ...current,
+                weddings: current.weddings.map((wedding: any) => wedding.id === weddingId
+                    ? {
+                        ...wedding,
+                        templateLicenses: [
+                            ...(wedding.templateLicenses || []).filter((license: any) => license.templateId !== templateId),
+                            result.data,
+                        ],
+                    }
+                    : wedding),
+            }));
+            showToast({
+                title: "ជោគជ័យ",
+                description: "បានដោះសោ Template បន្ទាប់ពីបញ្ជាក់ថាបានទទួលប្រាក់។",
+                type: "success",
+            });
+        } catch (error) {
+            showToast({
+                title: "បរាជ័យ",
+                description: "មានបញ្ហាក្នុងការដោះសោ Template។ សូមព្យាយាមម្ដងទៀត។",
+                type: "info",
+            });
+        } finally {
+            setUnlockingTemplateKey(null);
+        }
+    };
+
+    const handleGrantUserTemplate = async (templateId: string) => {
+        if (!selectedUserDetails || !window.confirm(`បើក Template ${templateId} ឲ្យ user នេះប្រើគ្រប់ wedding របស់គាត់?`)) {
+            return;
+        }
+
+        const key = `user:${templateId}`;
+        setUnlockingTemplateKey(key);
+        try {
+            const response = await fetch(`/api/admin/users/${selectedUserDetails.id}/template-access`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ templateId }),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                showToast({
+                    title: "បរាជ័យ",
+                    description: result.error || "មិនអាចបើក Template ឲ្យ user បានទេ។",
+                    type: "error",
+                });
+                return;
+            }
+
+            setSelectedUserDetails((current: any) => ({
+                ...current,
+                templateAccess: [
+                    ...(current.templateAccess || []).filter((access: any) => access.templateId !== templateId),
+                    result.data,
+                ],
+            }));
+            showToast({
+                title: "បានបើក Template",
+                description: `${templateId} អាចប្រើបានលើ wedding ទាំងអស់របស់ user នេះ។`,
+                type: "success",
+            });
+        } catch (error) {
+            console.error("[Admin Users] Failed to grant user template access:", error);
+            showToast({
+                title: "បរាជ័យ",
+                description: "មានបញ្ហាក្នុងការបើក Template។ សូមព្យាយាមម្ដងទៀត។",
+                type: "error",
+            });
+        } finally {
+            setUnlockingTemplateKey(null);
+        }
+    };
+
+    const handleRevokeUserTemplate = async (templateId: string) => {
+        if (!selectedUserDetails || !window.confirm(`បិទសិទ្ធិ Template ${templateId} ពី user នេះ?`)) {
+            return;
+        }
+
+        const key = `user:${templateId}`;
+        setUnlockingTemplateKey(key);
+        try {
+            const response = await fetch(
+                `/api/admin/users/${selectedUserDetails.id}/template-access/${encodeURIComponent(templateId)}`,
+                { method: "DELETE" },
+            );
+            const result = await response.json();
+            if (!response.ok) {
+                showToast({
+                    title: "បរាជ័យ",
+                    description: result.error || "មិនអាចបិទសិទ្ធិ Template បានទេ។",
+                    type: "error",
+                });
+                return;
+            }
+
+            setSelectedUserDetails((current: any) => ({
+                ...current,
+                templateAccess: (current.templateAccess || []).filter((access: any) => access.templateId !== templateId),
+            }));
+            showToast({
+                title: "បានបិទសិទ្ធិ Template",
+                description: templateId,
+                type: "success",
+            });
+        } catch (error) {
+            console.error("[Admin Users] Failed to revoke user template access:", error);
+            showToast({
+                title: "បរាជ័យ",
+                description: "មានបញ្ហាក្នុងការបិទសិទ្ធិ Template។ សូមព្យាយាមម្ដងទៀត។",
+                type: "error",
+            });
+        } finally {
+            setUnlockingTemplateKey(null);
         }
     };
 
@@ -441,6 +584,10 @@ export default function AdminUsersPage() {
                 handleRestoreUser={handleRestoreUser}
                 setShowDeleteDialog={setShowDeleteDialog}
                 deletingUser={deletingUser}
+                onUnlockTemplate={handleUnlockTemplate}
+                onGrantUserTemplate={handleGrantUserTemplate}
+                onRevokeUserTemplate={handleRevokeUserTemplate}
+                unlockingTemplateKey={unlockingTemplateKey}
             />
 
             <DeleteUserAdminDialog

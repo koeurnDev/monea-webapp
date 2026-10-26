@@ -864,7 +864,8 @@ const NeaM05: React.FC<TemplateProps> = ({ wedding, guestName, config }) => {
     const reducedMotion = usePrefersReducedMotion();
     const isEngagement = wedding.eventType === "anniversary";
     const text = isEngagement ? { ...copy[locale], ...copy[locale].engagement } : copy[locale];
-    const invitationTitle = isEngagement ? text.engagementInvitationTitle : text.invitationTitle;
+    const invitationTitle = wedding.themeSettings?.customLabels?.invitationTitle
+        || (isEngagement ? text.engagementInvitationTitle : text.invitationTitle);
     const englishInvitationTitle = isEngagement ? text.engagementEnglishInvitationTitle : text.englishInvitationTitle;
     const musicUrl = wedding.themeSettings?.musicUrl;
     const couplePhoto = getNeaM05CouplePhoto(wedding);
@@ -1511,11 +1512,11 @@ const NeaM05: React.FC<TemplateProps> = ({ wedding, guestName, config }) => {
 
             {stage === 6 && (
                 <header className="pointer-events-none fixed inset-x-0 top-0 z-[80] flex items-start justify-center bg-gradient-to-b from-[#100f0d]/90 via-[#100f0d]/55 to-transparent px-4 pb-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)] sm:pt-4">
-                    <div className="pointer-events-auto mx-auto flex w-full max-w-[430px] items-center justify-end gap-3 pr-2">
+                    <div className="pointer-events-auto mx-auto flex w-full max-w-[430px] items-center justify-end gap-2 pr-2">
                         <button
                             type="button"
                             onClick={() => setLocale((current) => current === "km" ? "en" : "km")}
-                            className="rounded-full border border-[#d8bc82]/45 bg-[#17130f]/30 px-3 py-1 font-kantumruy text-[10px] tracking-[0.12em] text-[#f1dfb8] shadow-[0_2px_10px_rgba(0,0,0,.12)] backdrop-blur-sm transition-colors hover:border-[#e7ce99]/75 hover:bg-[#2a2117]/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e7ce99]"
+                            className="inline-flex h-7 min-w-9 items-center justify-center rounded-full border border-[#d8bc82]/45 bg-[#17130f]/30 px-2 font-kantumruy text-[9px] tracking-[0.08em] text-[#f1dfb8] shadow-[0_2px_10px_rgba(0,0,0,.12)] backdrop-blur-sm transition-colors hover:border-[#e7ce99]/75 hover:bg-[#2a2117]/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e7ce99]"
                             aria-label={text.switchLanguage}
                         >
                             {locale === "km" ? "EN" : "ខ្មែរ"}
@@ -1524,10 +1525,10 @@ const NeaM05: React.FC<TemplateProps> = ({ wedding, guestName, config }) => {
                             <button
                                 type="button"
                                 onClick={toggleMusic}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-black/25 text-white/90 backdrop-blur-sm"
+                                className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 bg-black/25 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/40"
                                 aria-label={isPlaying ? text.pauseMusic : text.playMusic}
                             >
-                                {isPlaying ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                                {isPlaying ? <Volume2 size={13} /> : <VolumeX size={13} />}
                             </button>
                         )}
                     </div>
@@ -1549,7 +1550,7 @@ const NeaM05: React.FC<TemplateProps> = ({ wedding, guestName, config }) => {
                         bridePlaceholder={text.bridePlaceholder}
                         title={invitationTitle}
                         englishTitle={englishInvitationTitle}
-                        hint={text.openEnvelope}
+                        hint={wedding.themeSettings?.customLabels?.heroButton || text.openEnvelope}
                         stage={stage}
                         onOpen={startOpening}
                         onCardFullyExtracted={() => setStage(5)}
@@ -1599,7 +1600,12 @@ const NeaM05: React.FC<TemplateProps> = ({ wedding, guestName, config }) => {
                             >
                                 {invitationTitle}
                             </motion.p>
-                            <p className="m05-cover-english-title mt-1 font-pinyon-script text-base text-[#e8d3a7] sm:text-lg">
+                            {wedding.themeSettings?.customLabels?.heroSubtitle && (
+                                <p className="m05-khmer-safe mt-2 max-w-lg font-kantumruy text-xs leading-relaxed text-[#f5e9ce]/90 sm:text-sm">
+                                    {wedding.themeSettings.customLabels.heroSubtitle}
+                                </p>
+                            )}
+                            <p className="m05-cover-english-title mt-1 max-w-full whitespace-nowrap font-pinyon-script text-[clamp(0.7rem,4vw,1.125rem)] text-[#e8d3a7]">
                                 {englishInvitationTitle}
                             </p>
 

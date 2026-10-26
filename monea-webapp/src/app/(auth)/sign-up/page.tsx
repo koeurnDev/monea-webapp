@@ -108,7 +108,7 @@ export default function SignUpPage() {
             <div className="mb-3 flex w-full max-w-[460px] items-center justify-between px-1">
                 <Link
                     to="/"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-primary bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-xs transition-all hover:bg-primary/90 active:scale-95"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary shadow-xs transition-all hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-95"
                 >
                     <ChevronLeft size={15} />
                     <span>{isKm ? "ទំព័រដើម" : "Home"}</span>
@@ -306,12 +306,12 @@ export default function SignUpPage() {
                             <Button 
                                 type="submit" 
                                 disabled={isLoading || (showTurnstile && (!import.meta.env.VITE_TURNSTILE_SITE_KEY || !turnstileToken))}
-                                className="w-full bg-primary hover:bg-primary/90 active:bg-primary/80 text-primary-foreground font-bold h-12 rounded-xl shadow-md transition-all text-sm font-kantumruy"
+                                className="w-full min-h-12 h-auto whitespace-normal px-4 py-3 border border-primary bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 font-bold rounded-xl shadow-lg shadow-primary/15 transition-all text-sm font-kantumruy focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
                             >
                                 {isLoading ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
-                                    <span>{isKm ? "បង្កើតគណនីឥតគិតថ្លៃ" : "Create Free Account"}</span>
+                                    <span className="text-center leading-snug">{isKm ? "បង្កើតគណនីឥតគិតថ្លៃ" : "Create Free Account"}</span>
                                 )}
                             </Button>
                         </form>

@@ -140,7 +140,7 @@ export function InteractiveEnvelopeHero() {
                                         value={groom} 
                                         onChange={(e) => setGroom(e.target.value)}
                                         placeholder="ឈ្មោះកូនកំលោះ" 
-                                        className="w-full h-9 px-3 text-xs font-bold bg-background rounded-xl border border-border focus:border-rose-500 focus:outline-none"
+                                        className="w-full h-9 px-3 text-xs font-bold bg-background rounded-xl border border-border focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     />
                                 </div>
                                 <div>
@@ -150,7 +150,7 @@ export function InteractiveEnvelopeHero() {
                                         value={bride} 
                                         onChange={(e) => setBride(e.target.value)}
                                         placeholder="ឈ្មោះកូនក្រមុំ" 
-                                        className="w-full h-9 px-3 text-xs font-bold bg-background rounded-xl border border-border focus:border-rose-500 focus:outline-none"
+                                        className="w-full h-9 px-3 text-xs font-bold bg-background rounded-xl border border-border focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     />
                                 </div>
                             </div>
@@ -166,7 +166,7 @@ export function InteractiveEnvelopeHero() {
                                             onClick={() => setSelectedTheme(theme)}
                                             className={`px-2 py-1.5 rounded-lg text-xs font-bold border transition-all text-center truncate ${
                                                 selectedTheme.id === theme.id 
-                                                    ? "bg-rose-600 text-white border-rose-600 shadow-xs" 
+                                                    ? "bg-primary text-primary-foreground border-primary shadow-xs" 
                                                     : "bg-muted/50 hover:bg-muted text-foreground border-border"
                                             }`}
                                         >
@@ -186,7 +186,7 @@ export function InteractiveEnvelopeHero() {
                         >
                             <Link
                                 to={AUTH_URLS.SIGN_UP}
-                                className="w-full sm:w-auto flex-1 h-12 px-6 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold text-xs shadow-lg shadow-rose-600/25 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                                className="w-full sm:w-auto flex-1 h-12 px-6 rounded-xl border border-primary bg-primary text-primary-foreground font-bold text-xs shadow-lg shadow-primary/15 flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all"
                             >
                                 <span>បង្កើតធៀបការរបស់អ្នកផ្ទាល់</span>
                                 <ArrowRight className="w-4 h-4" />

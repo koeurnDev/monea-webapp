@@ -14,6 +14,9 @@ interface GallerySectionProps {
 export const GallerySection: React.FC<GallerySectionProps> = ({ wedding, primaryColor }) => {
     const photos = getWeddingPhotos(wedding);
     const [selectedPhoto, setSelectedPhoto] = useState<number | null>(null);
+    const galleryTitle = wedding.themeSettings?.customLabels?.galleryTitle
+        || wedding.themeSettings?.customLabels?.gallery_title
+        || "កម្រងរូបភាពអនុស្សាវរីយ៍";
     const galleryStyle = getGalleryDisplayStyle(wedding.themeSettings?.galleryStyle);
     const galleryContainerClass = galleryStyle === "slider"
         ? getGalleryContainerClass(galleryStyle)
@@ -25,7 +28,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ wedding, primary
             <div className="max-w-md mx-auto space-y-6 relative z-10">
                 <div className="text-center space-y-1">
                     <span className="text-xl sm:text-2xl font-khmer-moul text-[#1B4332] block">
-                        កម្រងរូបភាពអនុស្សាវរីយ៍
+                        {galleryTitle}
                     </span>
                     <div className="w-12 h-0.5 bg-gradient-to-r from-transparent via-emerald-600 to-transparent mx-auto" />
                 </div>
@@ -48,6 +51,9 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ wedding, primary
                                 src={photo.url}
                                 alt={`Photo ${idx + 1}`}
                                 className="h-full w-full object-cover"
+                                sizes={galleryStyle === "slider"
+                                    ? "(max-width: 640px) 82vw, 60vw"
+                                    : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 400px"}
                                 loading="lazy"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity flex items-end p-2.5">
@@ -85,6 +91,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ wedding, primary
                                 src={photos[selectedPhoto].url}
                                 alt="Enlarged moment"
                                 className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl"
+                                sizes="(max-width: 768px) 100vw, 800px"
                             />
                         </div>
                     </motion.div>

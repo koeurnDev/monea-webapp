@@ -15,6 +15,7 @@ interface GuestbookSectionProps {
     wedding: WeddingData;
     tone?: "light" | "dark";
     khmerSpacing?: boolean;
+    titleOneLine?: boolean;
     unboxed?: boolean;
     accentColorOverride?: string;
     sectionClassName?: string;
@@ -48,7 +49,7 @@ const fetchEntries = async (url: string): Promise<GuestbookEntry[]> => {
     return payload;
 };
 
-export function GuestbookSection({ wedding, tone = "light", khmerSpacing = false, unboxed = false, accentColorOverride, sectionClassName = "", contentClassName = "" }: GuestbookSectionProps) {
+export function GuestbookSection({ wedding, tone = "light", khmerSpacing = false, titleOneLine = false, unboxed = false, accentColorOverride, sectionClassName = "", contentClassName = "" }: GuestbookSectionProps) {
     const { locale, t } = useTranslation();
     const isSamplePreview = wedding.id === "preview-default" || wedding.id === "approval-preview";
     const requestKey = wedding.id && !isSamplePreview
@@ -127,7 +128,7 @@ export function GuestbookSection({ wedding, tone = "light", khmerSpacing = false
             <div className={`mx-auto max-w-xl ${unboxed ? "" : `rounded-3xl border p-5 shadow-sm sm:p-8 ${dark ? "border-[#b99b68]/35 bg-[#22251f]" : "border-stone-200 bg-white"}`} ${contentClassName}`}>
                 <header className="mb-7 text-center">
                     <BookHeart className="mx-auto mb-3 h-7 w-7" style={{ color: accentColor }} aria-hidden="true" />
-                    <h2 id="guestbook-title" className={`${khmerSpacingClass} break-words font-khmer-moul text-xl sm:text-2xl`} style={{ color: accentColor }}>
+                    <h2 id="guestbook-title" className={`${khmerSpacingClass} font-khmer-moul ${titleOneLine ? "max-w-full whitespace-nowrap text-[clamp(0.65rem,3.6vw,1.5rem)]" : "break-words text-xl sm:text-2xl"}`} style={{ color: accentColor }}>
                         {wedding.themeSettings?.customLabels?.guestbookTitle || t("invitation.guestbook.title")}
                     </h2>
                     <p className={`${khmerSpacingClass} mt-2 text-sm ${dark ? "text-[#d9cfb9]" : "text-slate-600"}`}>

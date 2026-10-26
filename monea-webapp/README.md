@@ -17,7 +17,7 @@ MONEA is a premium, cinematic digital wedding invitation platform designed to pr
 - **Frontend hosting**: Cloudflare Pages.
 - **API**: Hono on Cloudflare Workers (maintained in the sibling `monea-api-worker` project).
 - **Database**: PostgreSQL on Neon; Prisma is used by the application.
-- **Media**: Cloudinary.
+- **Media**: Cloudflare R2, with Cloudinary retained for legacy assets.
 - **Monitoring**: Sentry.
 
 ## Getting Started
@@ -41,6 +41,24 @@ MONEA is a premium, cinematic digital wedding invitation platform designed to pr
    ```bash
    npm run dev
    ```
+
+## R2 Direct Media Uploads
+
+Media uploads use short-lived signed R2 URLs when configured; otherwise the API keeps using its authenticated streaming upload route. To enable direct browser-to-R2 uploads in production:
+
+1. Set the Worker variables `R2_ACCOUNT_ID` and `R2_BUCKET_NAME` (the production bucket is `monea-media`).
+2. Add Worker secrets `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` using Cloudflare R2 S3 credentials scoped to the `monea-media` bucket. Never commit these values or add them to frontend environment variables.
+3. Configure the `monea-media` bucket CORS policy to allow origin `https://moneoez.com`, method `PUT`, and header `Content-Type`.
+
+Signed upload URLs expire after five minutes and are scoped to one authenticated user's authorized folder and the requested media type. Large or oversized JPEG, PNG, WebP, and AVIF images may be resized to a maximum dimension of 1600 pixels and converted to WebP before upload; audio and video files are uploaded unchanged. Keep the existing Worker upload route enabled as the fallback.
+
+To enable on-demand image derivatives without storing duplicate files:
+
+1. In Cloudflare, open **Images > Transformations**, enable transformations for the `moneoez.com` zone, and add `media.moneoez.com` as an allowed source origin.
+2. The web app requests a small set of responsive widths through `moneoez.com/cdn-cgi/image/`; Cloudflare transforms and edge-caches those variants while the original stays in R2.
+3. Verify transformed image requests on `https://moneoez.com` before considering the feature active. The image component falls back to the original R2 URL if a transformation fails.
+
+Transformations use `format=auto`, quality 78 for standard web display, and `scale-down` by default (`cover` for explicit fill crops). R2 responsive variants are normalized to 400, 800, 1200, or 1600 pixels to improve cache reuse. Cloudflare may bill unique transformation variants according to the account plan; the finite set keeps variant generation bounded.
 
 ## Template Development
 

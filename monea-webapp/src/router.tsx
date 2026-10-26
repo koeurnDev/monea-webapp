@@ -24,7 +24,6 @@ const TermsPage = lazy(() => import('./pages/TermsPage'))
 const ContactPage = lazy(() => import('./pages/ContactPage'))
 const SupportPage = lazy(() => import('./pages/SupportPage'))
 const DigitalWeddingInvitationPage = lazy(() => import('./pages/seo/DigitalWeddingInvitationPage'))
-const PricingPage = lazy(() => import('./pages/seo/PricingPage'))
 const MaintenancePage = lazy(() => import('./pages/MaintenancePage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
@@ -54,12 +53,10 @@ const DashboardGuestsPage = lazy(() => import('./pages/dashboard/GuestsPage'))
 const DashboardAccountPage = lazy(() => import('./pages/dashboard/AccountPage'))
 const DashboardSettingsPage = lazy(() => import('./pages/dashboard/SettingsPage'))
 const DashboardSupportPage = lazy(() => import('./pages/dashboard/SupportPage'))
-const DashboardUpgradePage = lazy(() => import('./pages/dashboard/UpgradePage'))
 const PreviewPage = lazy(() => import('./pages/dashboard/PreviewPage'))
 
 // --- Admin Pages ---
 const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'))
-const AdminPage = lazy(() => import('./pages/admin/AdminPage'))
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage'))
 const AdminUserDetailPage = lazy(() => import('./pages/admin/AdminUserDetailPage'))
 const AdminWeddingsPage = lazy(() => import('./pages/admin/AdminWeddingsPage'))
@@ -78,6 +75,8 @@ const AdminMasterSecurityPage = lazy(() => import('./pages/admin/master/Security
 const AdminMasterSettingsPage = lazy(() => import('./pages/admin/master/SettingsPage'))
 const AdminMasterSupportPage = lazy(() => import('./pages/admin/master/SupportPage'))
 const AdminMasterTemplatesPage = lazy(() => import('./pages/admin/master/TemplatesPage'))
+const AdminMasterTemplatePricingPage = lazy(() => import('./app/admin/master/template-pricing/page'))
+const AdminMasterMediaValidatorPage = lazy(() => import('./app/admin/media-validator/page'))
 const AdminMasterUsersPage = lazy(() => import('./pages/admin/master/UsersPage'))
 const AdminMasterWeddingsPage = lazy(() => import('./pages/admin/master/WeddingsPage'))
 
@@ -95,7 +94,7 @@ export default function Router() {
           <Route path="/contact" element={<Suspense fallback={fallback}><ContactPage /></Suspense>} />
           <Route path="/support" element={<Suspense fallback={fallback}><SupportPage /></Suspense>} />
           <Route path="/khmer-digital-wedding-invitation" element={<Suspense fallback={fallback}><DigitalWeddingInvitationPage /></Suspense>} />
-          <Route path="/pricing" element={<Suspense fallback={fallback}><PricingPage /></Suspense>} />
+          <Route path="/pricing" element={<Navigate to="/templates" replace />} />
           <Route path="/maintenance" element={<Suspense fallback={fallback}><MaintenancePage /></Suspense>} />
 
           {/* Wedding Public Routes */}
@@ -137,7 +136,8 @@ export default function Router() {
             <Route path="/dashboard/account" element={<Suspense fallback={fallback}><DashboardAccountPage /></Suspense>} />
             <Route path="/dashboard/settings" element={<Suspense fallback={fallback}><DashboardSettingsPage /></Suspense>} />
             <Route path="/dashboard/support" element={<Suspense fallback={fallback}><DashboardSupportPage /></Suspense>} />
-            <Route path="/dashboard/upgrade" element={<Suspense fallback={fallback}><DashboardUpgradePage /></Suspense>} />
+            {/* Deprecated route: /dashboard/upgrade */}
+            <Route path="/dashboard/upgrade" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard/guide" element={<Navigate to="/dashboard" replace />} />
           </Route>
 
@@ -146,7 +146,7 @@ export default function Router() {
 
           {/* Admin Routes (protected) */}
           <Route element={<AdminLayout />}>
-            <Route path="/admin" element={<Suspense fallback={fallback}><AdminPage /></Suspense>} />
+            <Route path="/admin" element={<Navigate to="/admin/master" replace />} />
             <Route path="/admin/users" element={<Suspense fallback={fallback}><AdminUsersPage /></Suspense>} />
             <Route path="/admin/users/:id" element={<Suspense fallback={fallback}><AdminUserDetailPage /></Suspense>} />
             <Route path="/admin/weddings" element={<Suspense fallback={fallback}><AdminWeddingsPage /></Suspense>} />
@@ -165,6 +165,8 @@ export default function Router() {
             <Route path="/admin/master/settings" element={<Suspense fallback={fallback}><AdminMasterSettingsPage /></Suspense>} />
             <Route path="/admin/master/support" element={<Suspense fallback={fallback}><AdminMasterSupportPage /></Suspense>} />
             <Route path="/admin/master/templates" element={<Suspense fallback={fallback}><AdminMasterTemplatesPage /></Suspense>} />
+            <Route path="/admin/master/template-pricing" element={<Suspense fallback={fallback}><AdminMasterTemplatePricingPage /></Suspense>} />
+            <Route path="/admin/master/media-validator" element={<Suspense fallback={fallback}><AdminMasterMediaValidatorPage /></Suspense>} />
             <Route path="/admin/master/users" element={<Suspense fallback={fallback}><AdminMasterUsersPage /></Suspense>} />
             <Route path="/admin/master/weddings" element={<Suspense fallback={fallback}><AdminMasterWeddingsPage /></Suspense>} />
           </Route>

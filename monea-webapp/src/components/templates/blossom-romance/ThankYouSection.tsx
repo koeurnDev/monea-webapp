@@ -2,6 +2,8 @@ import React from 'react';
 import { Heart, Sparkles } from 'lucide-react';
 import { WeddingData } from '../types';
 import { CoupleNamesLine } from "../shared/OneLineName";
+import { MoneaFooterBrand } from "../shared/MoneaFooterBrand";
+import { SocialLinksSection } from "../shared/SocialLinksSection";
 
 interface ThankYouSectionProps {
     wedding: WeddingData;
@@ -32,10 +34,8 @@ export const ThankYouSection: React.FC<ThankYouSectionProps> = ({ wedding, prima
                     <CoupleNamesLine groom={groomName} bride={brideName} className="m05-font-name text-lg font-serif italic text-rose-800 font-bold" />
                 </div>
 
-                <div className="pt-6 border-t border-rose-200/60 text-[10px] text-muted-foreground flex items-center justify-center gap-1.5">
-                    <span>បង្កើតឡើងដោយក្តីស្រឡាញ់ជាមួយ</span>
-                    <span className="font-bold text-rose-600 font-outfit tracking-[0.08em]">MONEO</span>
-                </div>
+                <SocialLinksSection wedding={wedding} />
+                <MoneaFooterBrand className="border-t border-rose-200/60 pt-6" />
             </div>
         </section>
     );

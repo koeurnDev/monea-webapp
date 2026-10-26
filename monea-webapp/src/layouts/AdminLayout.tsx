@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Outlet, Navigate, Link } from 'react-router-dom'
+import { Outlet, Navigate, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import LoadingScreen from '@/components/ui/LoadingScreen'
 import { ToastProvider } from '@/components/ui/Toast'
@@ -15,10 +15,11 @@ import { isPlatformOwner } from '@/lib/constants'
  */
 export default function AdminLayout() {
   const { user, isLoading } = useAuth()
+  const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   if (isLoading) return <LoadingScreen />
-  if (!user) return <Navigate to="/sign-in" replace />
+  if (!user) return <Navigate to="/sign-in" replace state={{ from: location }} />
   if (!isPlatformOwner(user.role)) {
     return <Navigate to="/dashboard" replace />
   }

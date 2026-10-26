@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import {
     CalendarDays,
+    BookOpen,
     ChevronLeft,
     ChevronRight,
     Download,
@@ -25,9 +26,11 @@ import type { ResolvedTemplateConfig, WeddingData } from "./types";
 import { getWeddingHeroImage, getWeddingPhotos } from "./shared/weddingPhotos";
 import { getGalleryCardClass, getGalleryContainerClass, getGalleryDisplayStyle } from "./shared/gallery-layout";
 import { PhotoImage } from "./shared/PhotoImage";
-import { getDirectMapUrl } from "./shared/mapUtils";
+import { getDirectMapUrl, getMapEmbedUrl, isGoogleMapsShortLink } from "./shared/mapUtils";
 import { isSectionVisible } from "./shared/template-settings";
 import { GuestbookSection } from "./shared/GuestbookSection";
+import { MoneaFooterBrand } from "./shared/MoneaFooterBrand";
+import { SocialLinksSection } from "./shared/SocialLinksSection";
 import { CoupleNamesLine, OneLineName } from "./shared/OneLineName";
 
 type Locale = keyof typeof copy;
@@ -70,20 +73,22 @@ const ParentNames = ({
     if (!fatherName && !motherName) return null;
 
     return (
-        <div className="min-w-0 px-2 py-3 text-center sm:px-3 sm:py-4">
-            <h3 className="m05-khmer-safe font-khmer-moul text-sm leading-[1.9] text-[#d9bd83] sm:text-base">
+        <div className="min-w-0 px-2 py-3 text-center [container-type:inline-size] sm:px-3 sm:py-4">
+            <h3 className="m05-khmer-safe whitespace-nowrap font-khmer-moul text-[clamp(8px,4.3cqi,14px)] leading-[1.9] text-[#d9bd83]">
                 {title}
             </h3>
             <div className="mt-3 space-y-2">
                 {fatherName && (
-                    <p className="m05-khmer-safe break-words font-kantumruy text-sm leading-[1.9] text-[#fffaf0] [overflow-wrap:anywhere] sm:text-base">
-                        <span className="text-[#e0d5bd]">{text.fatherNamePrefix} </span><span className="font-semibold">{fatherName}</span>
-                    </p>
+                    <OneLineName
+                        name={`${text.fatherNamePrefix} ${fatherName}`}
+                        className="m05-khmer-safe font-kantumruy text-sm font-semibold leading-[1.9] text-[#fffaf0]"
+                    />
                 )}
                 {motherName && (
-                    <p className="m05-khmer-safe break-words font-kantumruy text-sm leading-[1.9] text-[#fffaf0] [overflow-wrap:anywhere] sm:text-base">
-                        <span className="text-[#e0d5bd]">{text.motherNamePrefix} </span><span className="font-semibold">{motherName}</span>
-                    </p>
+                    <OneLineName
+                        name={`${text.motherNamePrefix} ${motherName}`}
+                        className="m05-khmer-safe font-kantumruy text-sm font-semibold leading-[1.9] text-[#fffaf0]"
+                    />
                 )}
             </div>
         </div>
@@ -105,6 +110,14 @@ export default function NeaM05Sections({
     const text = wedding.eventType === "anniversary"
         ? { ...copy[locale], ...copy[locale].engagement }
         : copy[locale];
+    const venueMapLocation = wedding.themeSettings?.mapLink?.trim()
+        || wedding.mapUrl?.trim()
+        || [wedding.locationName, wedding.location].filter(Boolean).join(", ");
+    const venueMapEmbedUrl = venueMapLocation && !isGoogleMapsShortLink(venueMapLocation)
+        ? getMapEmbedUrl(venueMapLocation, [wedding.locationName, wedding.location].filter(Boolean).join(", "))
+        : null;
+    const [isStoryBookOpen, setIsStoryBookOpen] = useState(false);
+    const [storyPageIndex, setStoryPageIndex] = useState(0);
     const gallery = useMemo(() => getWeddingPhotos(wedding), [wedding]);
     const visibleGallery = gallery;
     const galleryDisplayStyle = getGalleryDisplayStyle(wedding.themeSettings?.galleryStyle);
@@ -123,6 +136,18 @@ export default function NeaM05Sections({
         ? wedding.themeSettings.storyImages.filter(Boolean)
         : visibleGallery.slice(0, 5).map((item) => item.url);
     const hasLoveStoryContent = Boolean(loveStory || wedding.themeSettings?.storyImages?.some(Boolean));
+    const storyTextPages = loveStory.split(/\n+/).map((paragraph) => paragraph.trim()).filter(Boolean);
+    const storyPages = [
+        ...storyTextPages.map((content) => ({ type: "text" as const, content })),
+        ...storyImages.map((src, index) => ({
+            type: "image" as const,
+            src,
+            caption: wedding.themeSettings?.storyImageCaptions?.[index]?.trim(),
+        })),
+        ...(storyImages.length > 0 ? [{ type: "ending" as const, content: text.storyEnding }] : []),
+    ];
+    const currentStoryPageIndex = Math.min(storyPageIndex, Math.max(0, storyPages.length - 1));
+    const currentStoryPage = storyPages[currentStoryPageIndex];
     const activities = wedding.activities ?? [];
     const showTimeline = isSectionVisible(config, "timeline");
     const showGallery = isSectionVisible(config, "gallery");
@@ -261,43 +286,27 @@ export default function NeaM05Sections({
 
     return (
         <div ref={rootRef} className="contents">
-            <section
-                id="m05-invitation-words"
-                data-m05-reveal=""
-                className="relative overflow-hidden bg-[#25281f] px-5 py-20 text-[#f4ecdc] [container-type:inline-size] sm:py-28"
-            >
-                <div className="m05-invitation-words-layout relative mx-auto grid max-w-[1100px] items-center gap-8 sm:gap-12">
-                    <motion.div
-                        initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.96 }}
-                        whileInView={prefersReducedMotion ? undefined : { opacity: 1, scale: 1 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 1.1 }}
-                        className="m05-invitation-photo relative mx-auto w-full max-w-[340px]"
-                    >
-                        <div className="relative overflow-hidden rounded-t-[50%] border border-[#c8ad76]/35 shadow-[0_18px_48px_rgba(0,0,0,.3)]">
-                            {couplePhoto ? (
-                                <PhotoImage src={couplePhoto} alt={text.couplePhotoAlt} className="aspect-[4/5] w-full rounded-t-[50%] object-cover object-center" loading="lazy" decoding="async" />
-                            ) : (
-                                <div className="aspect-[4/5] rounded-t-[50%] bg-gradient-to-b from-[#899174] to-[#4d5940]" />
-                            )}
-                        </div>
-                    </motion.div>
-
-                    <div className="m05-invitation-copy relative rounded-2xl border border-[#c8ad76]/20 bg-black/10 px-4 py-5 text-center sm:px-6 sm:py-7">
-                        <p className="m05-foil m05-khmer-safe font-khmer-moul text-sm sm:text-base">{text.formalEyebrow}</p>
-                        <h2 className="m05-section-title m05-khmer-safe mx-auto mt-2 max-w-xl font-khmer-moul text-base leading-[1.85] sm:text-xl">{text.formalTitle}</h2>
-                        <p className="m05-invitation-description m05-khmer-safe mx-auto mt-4 max-w-2xl font-kantumruy text-base leading-[2] text-[#f4ecdc] sm:text-lg">
-                            {wedding.themeSettings?.invitationText || wedding.themeSettings?.welcomeMessage || text.formalPlaceholder}
-                        </p>
+            {(groomFather || groomMother || brideFather || brideMother || wedding.themeSettings?.invitationText?.trim()) && (
+                <section
+                    id="m05-invitation-words"
+                    data-m05-reveal=""
+                    className="relative overflow-hidden bg-[#25281f] px-5 py-12 text-[#f4ecdc] [container-type:inline-size] sm:py-16"
+                >
+                    <div className="mx-auto max-w-3xl rounded-2xl border border-[#c8ad76]/20 bg-black/10 px-3 py-5 sm:px-6 sm:py-7">
                         {(groomFather || groomMother || brideFather || brideMother) && (
-                            <div className="mt-6 grid grid-cols-2 divide-x divide-[#c8ad76]/20 sm:mt-8">
+                            <div className="grid grid-cols-2 divide-x divide-[#c8ad76]/30 [container-type:inline-size]">
                                 <ParentNames title={text.groomParents} father={groomFather} mother={groomMother} locale={locale} />
                                 <ParentNames title={text.brideParents} father={brideFather} mother={brideMother} locale={locale} />
                             </div>
                         )}
+                        {wedding.themeSettings?.invitationText?.trim() && (
+                            <p className="m05-khmer-safe mt-5 whitespace-pre-line text-center font-kantumruy text-sm leading-8 text-[#f4ecdc]/90">
+                                {wedding.themeSettings.invitationText}
+                            </p>
+                        )}
                     </div>
-                </div>
-            </section>
+                </section>
+            )}
 
             <section
                 id="m05-couple"
@@ -316,7 +325,7 @@ export default function NeaM05Sections({
                         >
                             {couplePhoto ? (
                                 <>
-                                    <PhotoImage src={couplePhoto} alt={text.couplePhotoAlt} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                                    <PhotoImage src={couplePhoto} alt={text.couplePhotoAlt} className="h-full w-full object-cover" sizes="(max-width: 640px) 100vw, 400px" loading="lazy" decoding="async" />
                                     <span className="m05-photo-tint pointer-events-none absolute inset-2" aria-hidden="true" />
                                 </>
                             ) : (
@@ -359,7 +368,7 @@ export default function NeaM05Sections({
                         <p className="m05-foil m05-khmer-safe font-khmer-moul text-[10px] tracking-[0.16em] sm:text-xs">{text.countdownEyebrow}</p>
                         <span aria-hidden="true" className="h-px w-7 bg-[#c8ad76]/60 sm:w-12" />
                     </div>
-                    <h2 className="m05-section-title m05-khmer-safe font-khmer-moul text-lg text-[#f6edda] sm:text-2xl">{text.countdownTitle}</h2>
+                    <h2 className="m05-section-title m05-khmer-safe whitespace-nowrap font-khmer-moul text-[clamp(0.65rem,5cqi,1.5rem)] text-[#f6edda]">{text.countdownTitle}</h2>
                     <div className="relative mx-auto mt-7 grid max-w-3xl grid-cols-4 sm:mt-10">
                         <span aria-hidden="true" className="absolute inset-x-[12.5%] top-[67%] h-px bg-gradient-to-r from-transparent via-[#c8ad76]/65 to-transparent" />
                         {(countdownParts || [null, null, null, null]).map((value, index) => {
@@ -444,57 +453,109 @@ export default function NeaM05Sections({
             </section>}
 
             {showLoveStory && hasLoveStoryContent && (
-            <section id="m05-story" className="relative overflow-hidden bg-[#25281f] px-5 py-16 text-[#f4ecdc] sm:py-24">
-                <div className="relative mx-auto grid w-full max-w-[1800px] gap-8 lg:grid-cols-[minmax(0,.95fr)_minmax(0,1.8fr)] lg:items-center lg:gap-12">
-                    <div className="flex flex-col justify-center text-center lg:text-left">
-                        <h2 className="m05-section-title m05-khmer-safe whitespace-nowrap font-khmer-moul text-lg leading-[1.7] sm:text-2xl">{text.storyTitle}</h2>
+            <section id="m05-story" className="relative overflow-hidden bg-[#25281f] px-5 py-16 text-[#f4ecdc] [container-type:inline-size] sm:py-24">
+                <div className="relative mx-auto flex w-full max-w-2xl flex-col items-center">
+                    <div className="mb-7 text-center">
+                        <h2 className="m05-section-title m05-khmer-safe font-khmer-moul text-lg leading-[1.7] sm:text-2xl">{text.storyTitle}</h2>
                         <p className="m05-khmer-safe mt-2 font-kantumruy text-xs text-[#f0eadb]/80">{text.storyHint}</p>
-                        {loveStory && (
-                            <p className="m05-khmer-safe mx-auto mt-5 max-w-2xl whitespace-pre-line break-words text-left font-kantumruy text-sm leading-8 text-[#f4ecdc]/90 sm:text-base sm:leading-9 lg:mx-0">
-                                {loveStory}
-                            </p>
-                        )}
                     </div>
-                    <div
-                        className="flex min-w-0 snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain scroll-smooth pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-7"
-                        role="region"
-                        aria-label={text.storyTitle}
-                        tabIndex={0}
-                    >
-                            {storyImages.map((src, index) => (
-                                <motion.article
-                                    key={`${src}-${index}`}
-                                    initial={prefersReducedMotion ? false : { opacity: 0, x: 90 }}
-                                    whileInView={prefersReducedMotion ? undefined : { opacity: 1, x: 0, y: 0 }}
-                                    viewport={{ once: true, amount: 0.2 }}
-                                    transition={{ duration: 0.8, delay: (index % 3) * 0.1, ease: [0.22, 1, 0.36, 1] }}
-                                    className="w-[82vw] max-w-[760px] min-w-[min(82vw,760px)] snap-start sm:w-[72vw] sm:min-w-[min(72vw,760px)]"
+
+                    {!isStoryBookOpen ? (
+                        <motion.button
+                            type="button"
+                            onClick={() => setIsStoryBookOpen(true)}
+                            whileTap={{ scale: 0.98 }}
+                            className="group relative flex min-h-[340px] w-full max-w-md flex-col items-center justify-center overflow-hidden rounded-r-2xl rounded-l-md border border-[#c8ad76]/55 bg-gradient-to-br from-[#494235] via-[#302f27] to-[#1b201b] px-8 py-10 text-center shadow-[10px_16px_32px_rgba(0,0,0,.35),inset_8px_0_0_rgba(200,173,118,.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e4c47c] focus-visible:ring-offset-4 focus-visible:ring-offset-[#25281f]"
+                            aria-label={`${text.storyTitle} — បើកសៀវភៅ`}
+                        >
+                            <span aria-hidden="true" className="absolute inset-y-0 left-5 w-px bg-[#c8ad76]/45" />
+                            <span aria-hidden="true" className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-[#c8ad76]/50 bg-black/10 text-[#e8d4a8]">
+                                <BookOpen className="h-8 w-8" strokeWidth={1.4} />
+                            </span>
+                            <span className="m05-foil m05-khmer-safe font-khmer-moul text-xl leading-[1.9] sm:text-2xl">{text.storyTitle}</span>
+                            <span className="mt-3 font-kantumruy text-sm text-[#e8d8b4]">
+                                {storyPages.length} {locale === "km" ? "ទំព័រ" : "pages"}
+                            </span>
+                            <span className="mt-8 rounded-full border border-[#c8ad76]/55 px-6 py-2.5 font-kantumruy text-sm text-[#f4ecdc] transition-colors group-hover:bg-white/10">
+                                {locale === "km" ? "បើកអានរឿងរ៉ាវ" : "Open storybook"}
+                            </span>
+                        </motion.button>
+                    ) : (
+                        <div className="w-full max-w-xl overflow-hidden rounded-r-2xl rounded-l-md border border-[#c8ad76]/35 bg-[#f4efdf] text-[#40392c] shadow-[10px_16px_32px_rgba(0,0,0,.32),inset_8px_0_0_#e2d8c2]">
+                            <div className="flex items-center justify-between border-b border-[#9b8055]/20 py-2 pl-8 pr-4">
+                                <span className="font-kantumruy text-xs text-[#806a47]" aria-live="polite">
+                                    {toKhmerDigits(currentStoryPageIndex + 1, locale)} / {toKhmerDigits(storyPages.length, locale)}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsStoryBookOpen(false)}
+                                    className="rounded-full p-2 text-[#704858] transition hover:bg-[#704858]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b8055]"
+                                    aria-label={locale === "km" ? "បិទសៀវភៅរឿងរ៉ាវ" : "Close storybook"}
                                 >
-                                    <div className="relative overflow-hidden">
-                                        <PhotoImage src={src} alt={`${text.storyPhotoAlt} ${toKhmerDigits(index + 1, locale)}`} className="h-[clamp(240px,42vw,540px)] w-full object-cover transition-transform duration-700 hover:scale-[1.035]" loading="lazy" decoding="async" />
-                                        <span className="m05-photo-tint pointer-events-none absolute inset-1.5" aria-hidden="true" />
-                                    </div>
-                                    {wedding.themeSettings?.storyImageCaptions?.[index]?.trim() && (
-                                        <p className="m05-khmer-safe mt-3 text-center text-sm leading-relaxed text-[#e8d8b4]">
-                                            {wedding.themeSettings.storyImageCaptions[index]}
-                                        </p>
-                                    )}
-                                </motion.article>
-                            ))}
-                            {storyImages.length > 0 && (
-                                <motion.div
-                                    initial={prefersReducedMotion ? false : { opacity: 0, x: 90 }}
-                                    whileInView={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }}
-                                    viewport={{ once: true, amount: 0.2 }}
-                                    transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                                    className="flex w-[72vw] min-w-[min(72vw,560px)] snap-start items-center justify-center px-6 text-center sm:w-[48vw] sm:min-w-[min(48vw,560px)]"
+                                    <X aria-hidden="true" className="h-4 w-4" />
+                                </button>
+                            </div>
+                            <div className="relative min-h-[360px] px-8 py-8 sm:min-h-[440px] sm:px-12 sm:py-10">
+                                <span aria-hidden="true" className="absolute inset-y-0 left-5 w-px bg-[#9b8055]/20" />
+                                <AnimatePresence mode="wait">
+                                    <motion.article
+                                        key={currentStoryPageIndex}
+                                        initial={prefersReducedMotion ? false : { opacity: 0, x: 24, rotateY: -4 }}
+                                        animate={{ opacity: 1, x: 0, rotateY: 0 }}
+                                        exit={prefersReducedMotion ? undefined : { opacity: 0, x: -24, rotateY: 4 }}
+                                        transition={{ duration: 0.22 }}
+                                        className="flex min-h-[296px] flex-col justify-center"
+                                    >
+                                        {currentStoryPage?.type === "text" ? (
+                                            <p className="m05-khmer-safe whitespace-pre-line break-words text-left font-kantumruy text-base leading-9 text-[#40392c] sm:text-lg sm:leading-10">
+                                                {currentStoryPage.content}
+                                            </p>
+                                        ) : currentStoryPage?.type === "image" ? (
+                                            <figure>
+                                                <PhotoImage
+                                                    src={currentStoryPage.src}
+                                                    alt={`${text.storyPhotoAlt} ${toKhmerDigits(currentStoryPageIndex - storyTextPages.length + 1, locale)}`}
+                                                    className="max-h-[54vh] min-h-[220px] w-full rounded-sm object-contain"
+                                                    sizes="(max-width: 430px) 100vw, 430px"
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                />
+                                                {currentStoryPage.caption && (
+                                                    <figcaption className="m05-khmer-safe mt-4 text-center font-kantumruy text-sm leading-relaxed text-[#6b5b40]">
+                                                        {currentStoryPage.caption}
+                                                    </figcaption>
+                                                )}
+                                            </figure>
+                                        ) : currentStoryPage?.type === "ending" ? (
+                                            <p className="m05-foil m05-khmer-safe text-center font-khmer-moul text-xl leading-[1.9] text-[#6b5b40] sm:text-2xl">
+                                                {currentStoryPage.content}
+                                            </p>
+                                        ) : null}
+                                    </motion.article>
+                                </AnimatePresence>
+                            </div>
+                            <div className="flex items-center justify-between border-t border-[#9b8055]/20 px-4 py-3 pl-8">
+                                <button
+                                    type="button"
+                                    onClick={() => setStoryPageIndex((page) => Math.max(0, currentStoryPageIndex - 1))}
+                                    disabled={currentStoryPageIndex === 0}
+                                    className="inline-flex items-center gap-1 rounded-full px-3 py-2 font-kantumruy text-sm text-[#704858] transition hover:bg-[#704858]/10 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b8055]"
                                 >
-                                    <p className="m05-foil m05-khmer-safe font-khmer-moul text-2xl leading-[1.8] sm:text-3xl">
-                                        {text.storyEnding}
-                                    </p>
-                                </motion.div>
-                            )}
-                    </div>
+                                    <ChevronLeft aria-hidden="true" className="h-4 w-4" />
+                                    {locale === "km" ? "មុន" : "Previous"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setStoryPageIndex((page) => Math.min(storyPages.length - 1, currentStoryPageIndex + 1))}
+                                    disabled={currentStoryPageIndex === storyPages.length - 1}
+                                    className="inline-flex items-center gap-1 rounded-full px-3 py-2 font-kantumruy text-sm text-[#704858] transition hover:bg-[#704858]/10 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b8055]"
+                                >
+                                    {locale === "km" ? "បន្ទាប់" : "Next"}
+                                    <ChevronRight aria-hidden="true" className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </section>
             )}
@@ -526,7 +587,7 @@ export default function NeaM05Sections({
                         <path d="M0 470 C200 452 340 488 540 468 S900 454 1100 474 1300 486 1440 468" fill="none" stroke="currentColor" strokeOpacity=".5" strokeWidth=".8" />
                         <path d="M0 560 C180 544 360 576 560 557 S900 543 1120 565 1320 575 1440 558" fill="none" stroke="currentColor" strokeOpacity=".4" strokeWidth=".7" />
                     </svg>
-                    <span className="pointer-events-none absolute bottom-8 left-1/2 z-10 inline-flex w-[min(92%,42rem)] -translate-x-1/2 items-center justify-center gap-2 text-center font-kantumruy text-xs leading-7 text-[#f0eadb]/95 drop-shadow-[0_1px_8px_rgba(0,0,0,.9)] transition-colors group-hover:text-white sm:text-sm">
+                    <span className="pointer-events-none absolute bottom-8 left-1/2 z-10 inline-flex w-[min(92%,42rem)] -translate-x-1/2 items-center justify-center gap-2 whitespace-nowrap text-center font-kantumruy text-[clamp(0.5rem,2.7cqi,0.875rem)] leading-7 text-[#f0eadb]/95 drop-shadow-[0_1px_8px_rgba(0,0,0,.9)] transition-colors group-hover:text-white">
                         <Sparkles size={13} aria-hidden="true" />
                         {text.candleHint}
                     </span>
@@ -564,33 +625,32 @@ export default function NeaM05Sections({
                 </button>
             </section>
 
-            {showGallery && <section id="m05-gallery" className="relative overflow-hidden bg-[#25281f] px-4 py-20 text-[#f4ecdc] sm:px-6 sm:py-28">
+            {showGallery && <section id="m05-gallery" className="relative overflow-hidden bg-[#25281f] px-4 py-20 text-[#f4ecdc] [container-type:inline-size] sm:px-6 sm:py-28">
                 <div
                     className="pointer-events-none absolute inset-0"
                     style={{ backgroundImage: "radial-gradient(ellipse at 50% 25%,color-mix(in srgb,var(--m05-foil) 7%,transparent),transparent 55%)" }}
                 />
                 <div className="relative mx-auto max-w-7xl">
-                    <div className="mb-8 flex items-end justify-between gap-4 sm:mb-12">
-                        <div>
-                            <h2 className="m05-section-title m05-khmer-safe whitespace-nowrap font-khmer-moul text-[clamp(10px,3.8vw,24px)] sm:text-2xl">{text.galleryTitle}</h2>
-                        </div>
+                    <div className="mb-8 flex flex-col items-center gap-3 text-center sm:mb-12">
+                        <span aria-hidden="true" className="h-px w-14 bg-gradient-to-r from-transparent via-[#c8ad76]/70 to-transparent" />
+                        <h2 className="m05-section-title m05-khmer-safe max-w-full whitespace-nowrap font-khmer-moul text-[clamp(0.65rem,4.5cqi,1.5rem)] leading-relaxed">{wedding.themeSettings?.customLabels?.galleryTitle || wedding.themeSettings?.customLabels?.gallery_title || text.galleryTitle}</h2>
                         {visibleGallery.length > 0 && (
-                            <span className="m05-foil shrink-0 font-serif-elegant text-sm tracking-[0.16em]" aria-label={`${visibleGallery.length} ${text.galleryPhotoAlt}`}>
+                            <span className="m05-foil inline-flex min-h-7 items-center rounded-full border border-[#c8ad76]/25 px-3 font-serif-elegant text-xs tracking-[0.16em] text-[#e8d8b4]" aria-label={`${visibleGallery.length} ${text.galleryPhotoAlt}`}>
                                 {toKhmerDigits(String(visibleGallery.length).padStart(2, "0"), locale)}
                             </span>
                         )}
                     </div>
                     {visibleGallery.length > 0 ? (
                         <div className={galleryDisplayStyle === "masonry"
-                            ? "grid auto-rows-[clamp(135px,18vw,220px)] grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-12"
+                            ? "m05-gallery-grid grid grid-cols-2 gap-2.5 sm:gap-4"
                             : getGalleryContainerClass(galleryDisplayStyle)}>
                             {visibleGallery.map((item, index) => (
                                 <button
                                     key={`${item.url}-${index}`}
                                     type="button"
                                     onClick={() => setActiveImage(index)}
-                                    className={`group relative block min-h-0 overflow-hidden bg-[#1b1e18] text-left outline-none focus-visible:ring-2 focus-visible:ring-[#e4c47c] ${galleryDisplayStyle === "masonry"
-                                        ? index === 0 ? "col-span-2 row-span-2 md:col-span-7" : index < 3 ? "col-span-1 md:col-span-5" : "col-span-1 md:col-span-3"
+                                    className={`group relative block min-h-0 overflow-hidden rounded-xl border border-[#c8ad76]/20 bg-[#171a16] text-left shadow-[0_8px_24px_rgba(0,0,0,.18)] outline-none transition-colors hover:border-[#c8ad76]/55 focus-visible:ring-2 focus-visible:ring-[#e4c47c] ${galleryDisplayStyle === "masonry"
+                                        ? `m05-gallery-card ${index === 0 ? "m05-gallery-featured" : index < 3 ? "m05-gallery-secondary" : "m05-gallery-standard"}`
                                         : galleryDisplayStyle === "polaroid" ? "aspect-square" : getGalleryCardClass(galleryDisplayStyle, index)}`}
                                     aria-label={`${text.openPhoto} ${toKhmerDigits(index + 1, locale)}`}
                                 >
@@ -598,12 +658,16 @@ export default function NeaM05Sections({
                                         src={item.url}
                                         alt={`${text.galleryPhotoAlt} ${toKhmerDigits(index + 1, locale)}`}
                                         className={`${galleryDisplayStyle === "polaroid"
-                                            ? "absolute inset-0 h-full w-full object-cover"
-                                            : "absolute inset-0 h-full w-full object-cover"} transition-transform duration-700 group-hover:scale-[1.035]`}
+                                            ? "absolute inset-0 h-full w-full object-contain"
+                                            : "absolute inset-0 h-full w-full object-contain"} p-1 transition-transform duration-500 group-hover:scale-[1.015]`}
+                                        sizes="(max-width: 640px) 50vw, 400px"
                                         loading="lazy"
                                         decoding="async"
                                     />
-                                    <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-50 transition-opacity duration-500 group-hover:opacity-75" />
+                                    <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/65 to-transparent px-3 pb-2 pt-7 opacity-70 transition-opacity group-hover:opacity-100">
+                                        <span className="font-serif-elegant text-[10px] tracking-[0.16em] text-white/90">{toKhmerDigits(String(index + 1).padStart(2, "0"), locale)}</span>
+                                        <span className="font-kantumruy text-[10px] text-white/80">{text.openPhoto}</span>
+                                    </span>
                                 </button>
                             ))}
                         </div>
@@ -616,7 +680,12 @@ export default function NeaM05Sections({
             {isSectionVisible(config, "map") && <section id="m05-venue" data-m05-reveal="" className="relative overflow-hidden bg-[#25281f] px-5 py-20 text-center text-[#f4ecdc] [container-type:inline-size] sm:py-28">
                 <MapPin aria-hidden="true" className="relative mx-auto mb-4 h-7 w-7 text-[#d9bd83]" strokeWidth={1.4} />
                 <p className="m05-foil m05-khmer-safe relative font-khmer-moul text-xs">{text.venueEyebrow}</p>
-                <h2 className="m05-section-title m05-khmer-safe relative mt-2 font-khmer-moul text-lg sm:text-2xl">{text.venueTitle}</h2>
+                <h2 className="m05-section-title m05-khmer-safe relative mt-2 font-khmer-moul text-lg sm:text-2xl">{wedding.themeSettings?.customLabels?.locationTitle || text.venueTitle}</h2>
+                {wedding.themeSettings?.customLabels?.locationSubtitle && (
+                    <p className="m05-khmer-safe relative mx-auto mt-2 max-w-xl font-kantumruy text-sm leading-relaxed text-[#e0d5bd]">
+                        {wedding.themeSettings.customLabels.locationSubtitle}
+                    </p>
+                )}
                 <div className="relative mx-auto mt-7 grid w-full max-w-2xl gap-5 rounded-2xl border border-[#c8ad76]/35 bg-black/10 p-5 text-left shadow-[0_18px_48px_rgba(0,0,0,.16)] sm:grid-cols-2 sm:gap-7 sm:p-7">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 text-[#d9bd83]">
@@ -682,13 +751,30 @@ export default function NeaM05Sections({
                         </button>
                     )}
                 </div>
+                {venueMapEmbedUrl && (
+                    <div className="relative mx-auto mt-5 aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-2xl border border-[#c8ad76]/40 bg-white shadow-[0_12px_32px_rgba(0,0,0,.2)]">
+                        <iframe
+                            title={`ផែនទីបង្ហាញទីតាំង ${wedding.locationName || wedding.location || "កម្មវិធី"}`}
+                            src={venueMapEmbedUrl}
+                            className="h-full w-full border-0"
+                            loading="lazy"
+                            allowFullScreen
+                            referrerPolicy="no-referrer-when-downgrade"
+                        />
+                    </div>
+                )}
             </section>}
 
             {isSectionVisible(config, "gift") && <section id="m05-gift" data-m05-reveal="" className="relative bg-[#25281f] px-5 py-20 text-center text-[#f4ecdc] sm:py-28">
                 <div className="mx-auto max-w-5xl">
                     <Gift className="mx-auto h-8 w-8 text-[#a2824f]" strokeWidth={1.2} aria-hidden="true" />
-                    <h2 className="m05-section-title m05-khmer-safe mt-3 font-khmer-moul text-lg sm:text-2xl">{text.giftTitle}</h2>
-                    <p className="m05-khmer-safe mx-auto mt-3 max-w-xl font-kantumruy text-sm text-[#e0d5bd]">{text.giftIntro}</p>
+                    <h2 className="m05-section-title m05-khmer-safe mt-3 font-khmer-moul text-lg sm:text-2xl">{wedding.themeSettings?.customLabels?.giftTitle || text.giftTitle}</h2>
+                    <p className="m05-khmer-safe mx-auto mt-3 max-w-xl font-kantumruy text-sm text-[#e0d5bd]">{wedding.themeSettings?.customLabels?.giftSubtitle || text.giftIntro}</p>
+                    {wedding.themeSettings?.customLabels?.giftBadge && (
+                        <p className="m05-khmer-safe mx-auto mt-3 w-fit rounded-full border border-[#c8ad76]/40 px-3 py-1 font-kantumruy text-xs font-semibold text-[#d9bd83]">
+                            {wedding.themeSettings.customLabels.giftBadge}
+                        </p>
+                    )}
                     <div className="mx-auto mt-8 grid w-full max-w-4xl gap-5 sm:grid-cols-2">
                         {(wedding.themeSettings?.bankAccounts || []).map((account, index) => {
                             const qrSource = account.qrUrl || (wedding.themeSettings?.paymentQrUrl ?? "");
@@ -737,7 +823,7 @@ export default function NeaM05Sections({
                 </div>
             </section>}
 
-            {isSectionVisible(config, "guestbook") && <GuestbookSection wedding={wedding} tone="dark" unboxed />}
+            {isSectionVisible(config, "guestbook") && <GuestbookSection wedding={wedding} tone="dark" titleOneLine unboxed />}
 
             <section id="m05-thank-you" data-m05-reveal="" className="relative overflow-hidden bg-[#171a16] px-5 py-20 text-center text-[#f4ecdc] [container-type:inline-size] sm:py-28">
                 <div className="pointer-events-none absolute inset-0 opacity-15" style={{ backgroundImage: "url('/khmer-invite-starter-kit/textures/paper-cream.webp')" }} />
@@ -751,9 +837,8 @@ export default function NeaM05Sections({
                     <p className="m05-khmer-safe mx-auto mt-4 max-w-xl font-kantumruy text-sm leading-[2] text-[#d9cfb9]">{wedding.themeSettings?.acknowledgment || text.thankYouMessage}</p>
                     <div className="mx-auto mt-12 h-px max-w-xs bg-gradient-to-r from-transparent via-[#b99b68]/75 to-transparent" />
                     <CoupleNamesLine groom={wedding.groomName} bride={wedding.brideName} separator="♡" className="m05-foil m05-khmer-safe mt-5 font-moulpali text-lg" />
-                    <p className="mt-8 font-serif-elegant text-[10px] font-medium uppercase tracking-[0.24em] text-[#e2c68e]/70">
-                        MONEO
-                    </p>
+                    <SocialLinksSection wedding={wedding} />
+                    <MoneaFooterBrand className="mt-8 rounded-2xl bg-[#f7f1ea] px-4 py-2" />
                 </div>
             </section>
 

@@ -24,11 +24,15 @@ import { BackgroundMusic } from './modern-minimal/BackgroundMusic';
 import { getWeddingHeroImage } from "./shared/weddingPhotos";
 import { isSectionVisible } from "./shared/template-settings";
 import { GuestbookSection } from "./shared/GuestbookSection";
+import { MoneaFooterBrand } from "./shared/MoneaFooterBrand";
+import { SocialLinksSection } from "./shared/SocialLinksSection";
 
 export default function ModernMinimal({ wedding, guestName, config }: TemplateProps) {
-    const { t } = useTranslation();
+    const { locale } = useTranslation();
+    const isKhmer = locale === "km";
     const [revealed, setRevealed] = React.useState(false);
     const [isPlaying, setIsPlaying] = React.useState(false);
+    const [isGalleryLightboxOpen, setIsGalleryLightboxOpen] = React.useState(false);
     const audioRef = React.useRef<HTMLAudioElement>(null);
 
     // Support for Preview Dashboard scrolling
@@ -62,7 +66,7 @@ export default function ModernMinimal({ wedding, guestName, config }: TemplatePr
             )}
 
             {revealed && <main
-                className="relative z-10 w-full overflow-x-hidden"
+                className="modern-minimal-content relative z-10 w-full overflow-x-hidden"
             >
                 <HeroSection wedding={wedding} />
                 <CountdownSection wedding={wedding} />
@@ -76,24 +80,27 @@ export default function ModernMinimal({ wedding, guestName, config }: TemplatePr
 
                 {isSectionVisible(config, "map") && <LocationSection wedding={wedding} />}
                 <VideoSection wedding={wedding} />
-                {isSectionVisible(config, "gallery") && <GallerySection wedding={wedding} />}
+                {isSectionVisible(config, "gallery") && (
+                    <GallerySection
+                        wedding={wedding}
+                        onLightboxOpenChange={setIsGalleryLightboxOpen}
+                    />
+                )}
                 
                 {isSectionVisible(config, "gift") && <GiftSection wedding={wedding} />}
-                {isSectionVisible(config, "guestbook") && <GuestbookSection wedding={wedding} tone="dark" unboxed accentColorOverride="#d6bd83" />}
+                {isSectionVisible(config, "guestbook") && <GuestbookSection wedding={wedding} tone="light" unboxed accentColorOverride="#9b8055" />}
                 <ThankYouSection wedding={wedding} />
 
-                <footer className="border-t border-slate-800 bg-[#0A1226] px-6 py-14 text-center sm:py-16">
-                    <div className="mx-auto flex max-w-xs flex-col items-center gap-4">
-                        <div className="flex items-center gap-3" aria-hidden="true">
-                            <span className="h-px w-10 bg-gradient-to-r from-transparent to-[#C8A96B]/70" />
-                            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#C8A96B]/60 font-serif-elegant text-sm text-[#DCC28A]">
-                                M
-                            </span>
-                            <span className="h-px w-10 bg-gradient-to-l from-transparent to-[#C8A96B]/70" />
-                        </div>
-                        <p className="text-[10px] font-semibold tracking-[0.08em] text-slate-400">Powered by MONEO</p>
-                        <p className="text-[11px] text-slate-500">Made for your forever</p>
-                    </div>
+                <footer
+                    className="relative overflow-hidden border-t border-[#c8a96b]/25 px-6 py-12 text-center sm:py-16"
+                    style={{
+                        backgroundColor: "var(--monea-paper-color, #f7f1ea)",
+                        backgroundImage: "var(--monea-paper-texture, none)",
+                    }}
+                >
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(ellipse_at_top,rgba(200,169,107,0.12),transparent_70%)]" />
+                    <SocialLinksSection wedding={wedding} />
+                    <MoneaFooterBrand className="relative mx-auto max-w-sm" />
                 </footer>
             </main>}
 
@@ -113,6 +120,7 @@ export default function ModernMinimal({ wedding, guestName, config }: TemplatePr
                     isPlaying={isPlaying}
                     setIsPlaying={setIsPlaying}
                     audioRef={audioRef}
+                    showControl={!isGalleryLightboxOpen}
                 />
             )}
         </div>

@@ -20,7 +20,9 @@
     "test:nav": "node scripts/check-navigation.mjs",
     "test:templates": "node --experimental-strip-types --test scripts/template-contract.test.mjs",
     "photos:prepare": "node scripts/prepare-wedding-photos.mjs",
-    "analyze": "vite build --mode analyze"
+    "analyze": "vite build --mode analyze",
+    "sitemap:generate": "node scripts/generate-sitemap.mjs",
+    "seo:validate": "echo 'Run: https://search.google.com/test/rich-results' && echo 'Paste URL to validate structured data'"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",

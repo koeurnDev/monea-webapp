@@ -16,6 +16,20 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isTemplateEventType = (value: unknown): value is TemplatePresentationMetadata["eventType"] =>
     value === "wedding" || value === "anniversary" || value === "both";
 
+const isUploadedTemplateCover = (value: string): boolean => {
+    try {
+        const url = new URL(value);
+        return url.protocol === "https:"
+            && (
+                (url.hostname === "res.cloudinary.com" && url.pathname.includes("/image/upload/"))
+                || (url.hostname === "media.moneoez.com"
+                    && url.pathname.split("/").filter(Boolean)[0] === "template-covers")
+            );
+    } catch {
+        return false;
+    }
+};
+
 export function normalizeTemplateAvailability(value: unknown): Record<string, boolean> {
     if (!isRecord(value)) {
         throw new TypeError("Template availability response must be an object");
@@ -64,7 +78,7 @@ export function normalizeTemplatePresentationMetadata(
             return [id, {
                 title: metadata.title,
                 description: metadata.description,
-                image: metadata.image,
+                image: isUploadedTemplateCover(metadata.image) ? metadata.image : "",
                 eventType: metadata.eventType,
             }];
         }),
@@ -90,12 +104,12 @@ const STANDARD_VISIBILITY_CONTROLS = ["story", "gallery", "timeline", "guestbook
 
 export const TEMPLATE_DEFINITIONS = {
     "khmer-legacy": {
-        code: "M-01",
+        code: "M1",
         id: "khmer-legacy",
         title: "Khmer Legacy",
         description: "រចនាបែបប្រពៃណីខ្មែរ សម្រាប់ពិធីមង្គលការ និងភ្ជាប់ពាក្យ",
         eventType: "both",
-        image: "/assets/khmer-legacy/621811254_905398285378636_5240747682765358044_n.jpg",
+        image: "",
         primaryColor: "#E8AC00",
         isFree: false,
         comingSoon: false,
@@ -104,26 +118,26 @@ export const TEMPLATE_DEFINITIONS = {
         component: lazy(() => import("./KhmerLegacy")),
     },
     "modern-minimal": {
-        code: "M-02",
+        code: "M2",
         id: "modern-minimal",
         title: "ទំនើប សាមញ្ញ",
         description: "រចនាស្អាតសាមញ្ញ សម្រាប់ពិធីមង្គលការ និងភ្ជាប់ពាក្យ",
         eventType: "both",
-        image: "/images/bg_tunnel.webp",
+        image: "",
         primaryColor: "#0A1226",
-        isFree: false,
+        isFree: true,
         comingSoon: false,
         selectable: true,
         visibilityControls: STANDARD_VISIBILITY_CONTROLS,
         component: lazy(() => import("./ModernMinimal")),
     },
     "fortune-harmony": {
-        code: "M-03",
+        code: "M3",
         id: "fortune-harmony",
         title: "ប្រណីត - Fortune Harmony",
         description: "រចនាបែបប្រណីត សម្រាប់ពិធីមង្គលការ និងភ្ជាប់ពាក្យ",
         eventType: "both",
-        image: "/assets/fortune-harmony/fortune-crimson-bg.jpg",
+        image: "",
         primaryColor: "#D4AF37",
         isFree: false,
         comingSoon: false,
@@ -132,12 +146,12 @@ export const TEMPLATE_DEFINITIONS = {
         component: lazy(() => import("./FortuneHarmony")),
     },
     "blossom-romance": {
-        code: "M-04",
+        code: "M4",
         id: "blossom-romance",
         title: "Rose Garden",
         description: "រចនាបែបផ្កា ទន់ភ្លន់ និងរ៉ូម៉ង់ សម្រាប់ពិធីមង្គលការ និងភ្ជាប់ពាក្យ",
         eventType: "both",
-        image: "/assets/blossom-romance/blossom-arch-bg.jpg",
+        image: "",
         primaryColor: "#B76572",
         isFree: false,
         comingSoon: false,
@@ -146,12 +160,12 @@ export const TEMPLATE_DEFINITIONS = {
         component: lazy(() => import("./BlossomRomance")),
     },
     "nea-m05": {
-        code: "M-05",
+        code: "M5",
         id: "nea-m05",
         title: "NEA - Olive & Gold",
         description: "រចនាបែបក្រដាសធៀបខ្មែរ សម្រាប់ពិធីមង្គលការ និងភ្ជាប់ពាក្យ",
         eventType: "both",
-        image: "/khmer-invite-starter-kit/elements/crest.svg",
+        image: "",
         primaryColor: "#A27A43",
         isFree: false,
         comingSoon: false,
@@ -160,12 +174,12 @@ export const TEMPLATE_DEFINITIONS = {
         component: lazy(() => import("./NeaM05")),
     },
     "emerald-garden": {
-        code: "M-06",
+        code: "M6",
         id: "emerald-garden",
         title: "Emerald Garden",
         description: "រចនាបែបសួនបៃតង សម្រាប់ពិធីមង្គលការ និងភ្ជាប់ពាក្យ",
         eventType: "both",
-        image: "/assets/emerald-garden/emerald-garden-bg.jpg",
+        image: "",
         primaryColor: "#1B4332",
         isFree: false,
         comingSoon: false,
@@ -174,12 +188,12 @@ export const TEMPLATE_DEFINITIONS = {
         component: lazy(() => import("./EmeraldGarden")),
     },
     "anniversary-elegant": {
-        code: "M-07",
+        code: "M7",
         id: "anniversary-elegant",
         title: "Anniversary Elegant",
         description: "រចនាបែបឆើតឆាយសម្រាប់ពិធីភ្ជាប់ពាក្យ",
         eventType: "anniversary",
-        image: "/assets/anniversary-elegant/anniversary-elegant-bg.webp",
+        image: "",
         primaryColor: "#8B4B55",
         isFree: false,
         comingSoon: false,
@@ -188,12 +202,12 @@ export const TEMPLATE_DEFINITIONS = {
         component: lazy(() => import("./AnniversaryElegant")),
     },
     "garden-editorial": {
-        code: "M-08",
+        code: "M8",
         id: "garden-editorial",
         title: "Palace Bloom",
         description: "រចនាបែបវិមានផ្កា ទន់ភ្លន់ និងប្រណីត ជាមួយពណ៌មាស",
         eventType: "wedding",
-        image: "/assets/blossom-romance/blossom-arch-bg.jpg",
+        image: "",
         primaryColor: "#A78337",
         isFree: false,
         comingSoon: false,

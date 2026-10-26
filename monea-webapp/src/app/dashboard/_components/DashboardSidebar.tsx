@@ -154,7 +154,6 @@ export const DashboardSidebar = memo(function DashboardSidebar({ onCloseMobile, 
             {
                 id: "account",
                 items: [
-                    { href: "/dashboard/upgrade", label: t("dashboard.nav.upgrade", { defaultValue: "ដំឡើងកម្រិត" }), icon: Crown, emphasized: true },
                     support,
                     ...adminPortal,
                 ],
@@ -205,12 +204,12 @@ export const DashboardSidebar = memo(function DashboardSidebar({ onCloseMobile, 
             <div className={`relative p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] ${collapsed ? "flex justify-center" : ""}`}>
                 <Button
                     variant="ghost"
-                    className={`${collapsed ? "h-12 w-12 justify-center px-0" : "h-12 w-full justify-start gap-3"} text-primary hover:text-primary hover:bg-accent rounded-xl transition-all`}
+                    className={`${collapsed ? "h-12 w-12 justify-center px-0" : "h-12 w-full justify-start gap-3"} text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all`}
                     onClick={() => setIsLogoutModalOpen(true)}
                     title={collapsed ? t("common.auth.logout", { defaultValue: "ចាកចេញ" }) : undefined}
                 >
-                    <LogOut className="h-4 w-4 text-primary" />
-                    {!collapsed && <span className="text-xs font-bold tracking-wide font-kantumruy text-primary">{t("common.auth.logout", { defaultValue: "ចាកចេញ" })}</span>}
+                    <LogOut className="h-4 w-4 text-destructive" />
+                    {!collapsed && <span className="text-xs font-bold tracking-wide font-kantumruy text-destructive">{t("common.auth.logout", { defaultValue: "ចាកចេញ" })}</span>}
                 </Button>
             </div>
 

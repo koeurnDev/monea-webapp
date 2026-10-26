@@ -53,9 +53,13 @@ async function prepareAvatarFile(file: File): Promise<File> {
     }
 }
 
-function getCloudinaryPublicId(url: string): string | null {
+function getMediaPublicId(url: string): string | null {
     try {
         const parsed = new URL(url);
+        if (parsed.hostname === "media.moneoez.com") {
+            const key = parsed.pathname.split("/").filter(Boolean).map(decodeURIComponent).join("/");
+            return key ? `r2:${key}` : null;
+        }
         if (parsed.hostname !== "res.cloudinary.com") return null;
 
         const uploadPath = "/upload/";
@@ -74,14 +78,17 @@ function getCloudinaryPublicId(url: string): string | null {
 
 async function deleteProfileAsset(publicId: string) {
     try {
-        const response = await fetch("/api/cloudinary/delete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ public_id: publicId, resource_type: "image" })
-        });
-        if (!response.ok) console.warn("Cloudinary profile asset cleanup failed", response.status);
+        const response = publicId.startsWith("r2:")
+            ? await moneaClient.post<{ success?: boolean }>("/api/r2/delete", { publicId })
+            : await moneaClient.post<{ success?: boolean }>("/api/cloudinary/delete", {
+                public_id: publicId,
+                resource_type: "image",
+            });
+        if (response.error || response.data?.success !== true) {
+            console.warn("Profile asset cleanup failed:", response.error || "Delete was not confirmed");
+        }
     } catch (error) {
-        console.warn("Cloudinary profile asset cleanup failed", error);
+        console.warn("Profile asset cleanup failed", error);
     }
 }
 
@@ -151,7 +158,7 @@ export function ProfileTab({ user, onShowChangePassword, onUpdateSuccess }: Prof
             if (response.error || !response.data?.success) throw new Error(response.error || "Avatar update failed");
             setAvatar(nextAvatar || "");
             onUpdateSuccess?.();
-            const oldPublicId = avatar ? getCloudinaryPublicId(avatar) : null;
+            const oldPublicId = avatar ? getMediaPublicId(avatar) : null;
             if (oldPublicId && oldPublicId !== newPublicId) void deleteProfileAsset(oldPublicId);
         } catch (error) {
             console.error("Error updating avatar", error);

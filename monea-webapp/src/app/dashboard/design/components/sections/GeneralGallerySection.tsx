@@ -1,6 +1,6 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
-import { ImageIcon, LayoutGrid, SlidersHorizontal, Film, Plus, Trash2, Loader2, Scissors, ArrowDown, ArrowUp } from "lucide-react";
+import { ImageIcon, LayoutGrid, SlidersHorizontal, Film, Plus, Trash2, Loader2, Scissors, ArrowDown, ArrowUp, Replace } from "lucide-react";
 import clsx from "clsx";
 import { PhotoImage } from "@/components/templates/shared/PhotoImage";
 import { getWeddingPhotoLayout } from "@/lib/wedding-photo-layout";
@@ -45,6 +45,9 @@ export const GeneralGallerySection: React.FC<GeneralGallerySectionProps> = ({
     const [reorderFeedback, setReorderFeedback] = React.useState<string | null>(null);
     const [isReordering, setIsReordering] = React.useState(false);
     const cropTargetIndex = React.useRef<number | null>(null);
+    const slotTargetIndex = React.useRef<number | null>(null);
+    const slotInputRef = React.useRef<HTMLInputElement>(null);
+    const [slotUploadFeedback, setSlotUploadFeedback] = React.useState<string | null>(null);
     const photoLayout = getWeddingPhotoLayout(wedding.templateId);
     const cropUploader = useCloudinaryUpload({
         folder: wedding.id || "",
@@ -59,19 +62,41 @@ export const GeneralGallerySection: React.FC<GeneralGallerySectionProps> = ({
         },
         onError: (error) => console.error("Cropped photo upload failed:", error),
     });
-    const isBusy = uploading || cropUploader.uploading || isReordering;
+    const slotUploader = useCloudinaryUpload({
+        folder: wedding.id || "",
+        resourceType: "image",
+        onSuccess: async (url, publicId) => {
+            const index = slotTargetIndex.current;
+            if (index === null) return;
+            const saved = await onReplacePhoto(index, url, publicId);
+            setSlotUploadFeedback(saved
+                ? "បានរក្សាទុករូបនៅផ្នែកដែលបានជ្រើសរើស។"
+                : "រូបបានផ្ទុកឡើង ប៉ុន្តែរក្សាទុកមិនបាន។ សូមសាកម្ដងទៀត។");
+        },
+        onError: (error) => {
+            console.error("Section photo upload failed:", error);
+            setSlotUploadFeedback(error instanceof Error ? error.message : "មិនអាចដាក់រូបក្នុងផ្នែកនេះបានទេ។");
+        },
+    });
+    const isBusy = uploading || cropUploader.uploading || slotUploader.uploading || isReordering;
     const galleryItems = wedding.galleryItems || [];
+    const filledSectionCount = photoLayout.slots.reduce(
+        (count, slot) => count + (galleryItems[slot.index]?.url?.trim() ? 1 : 0),
+        0,
+    );
     const photos = galleryItems
         .map((item: any, index: number) => ({ item, index }))
         .filter(({ item }: { item: any }) =>
             item && typeof item.url === "string" && item.url.trim()
             && item.type?.toUpperCase() !== "VIDEO"
             && item.type?.toUpperCase() !== "CERTIFICATE"
+        )
+        .filter(({ index }: { index: number }) => index >= photoLayout.slots.length
         );
 
     React.useEffect(() => {
-        onMediaOperationChange(cropUploader.uploading || isReordering);
-    }, [cropUploader.uploading, isReordering, onMediaOperationChange]);
+        onMediaOperationChange(cropUploader.uploading || slotUploader.uploading || isReordering);
+    }, [cropUploader.uploading, isReordering, onMediaOperationChange, slotUploader.uploading]);
 
     const selectedPhoto = cropIndex === null ? null : galleryItems[cropIndex];
     const selectedSlot = cropIndex === null ? undefined : photoLayout.slots[cropIndex];
@@ -107,22 +132,133 @@ export const GeneralGallerySection: React.FC<GeneralGallerySectionProps> = ({
             cropTargetIndex.current = null;
         }
     };
+    const uploadSlotPhoto = async (file: File) => {
+        if (file.type && !file.type.startsWith("image/")) {
+            setSlotUploadFeedback("សូមជ្រើសរើសឯកសាររូបភាពប៉ុណ្ណោះ។");
+            return;
+        }
+        setSlotUploadFeedback(null);
+        await slotUploader.uploadFile(file);
+        slotTargetIndex.current = null;
+    };
 
     return (
         <section className="space-y-4 rounded-2xl border border-border bg-card p-3 font-kantumruy sm:space-y-5 sm:p-5">
             <div className="space-y-1">
                 <h4 className="flex items-center gap-2 text-sm font-bold text-foreground">
                     <ImageIcon className="h-4 w-4 text-primary" />
-                    រូបភាពសម្រាប់ធៀប
+                    ជ្រើសរើសរូបតាមផ្នែក
                 </h4>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                    ជ្រើសរើសរូបច្រើនសន្លឹកម្ដងបាន។ រូបទី១ដាក់លើគម្រប រូបបន្ទាប់ៗនឹងបំពេញផ្នែកផ្សេងៗដោយស្វ័យប្រវត្តិ។
-                </p>
-                <p className="text-xs text-muted-foreground">
-                    រូបដែលមានរួចនឹងមិនត្រូវបានជំនួសទេ—រូបថ្មីនឹងបំពេញកន្លែងទំនេរបន្ទាប់។
+                    {filledSectionCount}/{photoLayout.slots.length} ផ្នែកមានរូប · ចុចប៊ូតុងដើម្បីបន្ថែម ឬប្ដូររូប។
                 </p>
             </div>
 
+            <input
+                ref={slotInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void uploadSlotPhoto(file);
+                    event.target.value = "";
+                }}
+            />
+            {slotUploadFeedback && (
+                <p role={slotUploadFeedback.startsWith("បាន") ? "status" : "alert"} className={clsx(
+                    "text-xs font-bold",
+                    slotUploadFeedback.startsWith("បាន")
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-rose-700 dark:text-rose-300",
+                )}>
+                    {slotUploadFeedback}
+                </p>
+            )}
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 xl:grid-cols-3">
+                {photoLayout.slots.map((slot) => {
+                    const item = galleryItems[slot.index];
+                    const hasPhoto = Boolean(item?.url?.trim());
+                    return (
+                        <div key={slot.key} title={slot.locationHint} className="flex min-w-0 overflow-hidden rounded-xl border border-border bg-background sm:flex-col">
+                            <div className="h-28 w-24 shrink-0 bg-muted sm:h-auto sm:w-full" style={{ aspectRatio: String(slot.aspectRatio) }}>
+                                {hasPhoto ? (
+                                    <PhotoImage
+                                        src={item.url}
+                                        alt={slot.title}
+                                        loading="lazy"
+                                        decoding="async"
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center text-muted-foreground">
+                                        <ImageIcon className="h-6 w-6 opacity-50" />
+                                        <span className="text-[10px] leading-tight">មិនទាន់មានរូប</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-2.5 sm:flex-none">
+                                <div className="space-y-1">
+                                    <p className="line-clamp-2 text-xs font-bold leading-relaxed text-foreground">{slot.title}</p>
+                                    <p className={clsx("text-[11px] font-semibold", hasPhoto ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground")}>
+                                        {hasPhoto ? "បានដាក់រូបរួច" : "មិនទាន់មានរូប"}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => {
+                                        slotTargetIndex.current = slot.index;
+                                        setSlotUploadFeedback(null);
+                                        slotInputRef.current?.click();
+                                    }}
+                                    className="flex min-h-11 w-full items-center justify-center gap-1 rounded-lg border border-primary/25 bg-primary/5 px-2 text-xs font-bold text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+                                >
+                                    {hasPhoto ? <Replace size={14} /> : <Plus size={14} />}
+                                    {hasPhoto ? "ប្ដូររូប" : "ដាក់រូប"}
+                                </button>
+                                {hasPhoto && (
+                                    <div className="grid grid-cols-2 gap-1">
+                                        <button
+                                            type="button"
+                                            disabled={isBusy}
+                                            onClick={() => {
+                                                setCropFeedback(null);
+                                                setCropIndex(slot.index);
+                                            }}
+                                            className="flex min-h-10 items-center justify-center gap-1 rounded-lg px-2 text-xs font-semibold text-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+                                        >
+                                            <Scissors size={13} />
+                                            កាត់
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={isBusy}
+                                            onClick={() => removeGalleryItem(slot.index)}
+                                            className="min-h-10 rounded-lg px-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-50 dark:hover:bg-rose-500/10"
+                                        >
+                                            លុបរូប
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {slotUploader.uploading && (
+                <p role="status" className="text-xs font-bold text-primary">
+                    កំពុងដាក់រូបក្នុងផ្នែកដែលបានជ្រើសរើស... {slotUploader.progress}%
+                </p>
+            )}
+
+            <div className="space-y-1 border-t border-border pt-4">
+                <h5 className="text-xs font-bold text-foreground">រូបវិចិត្រសាលបន្ថែម (ស្រេចចិត្ត)</h5>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                    រូបដែលដាក់នៅទីនេះចូលកម្រងរូបតែប៉ុណ្ណោះ មិនត្រូវបានចាត់ទៅផ្នែកខាងលើដោយស្វ័យប្រវត្តិទេ។
+                </p>
+            </div>
             <input
                 ref={inputRef}
                 type="file"
@@ -160,7 +296,7 @@ export const GeneralGallerySection: React.FC<GeneralGallerySectionProps> = ({
 
             {uploadStatus === "success" && (
                 <p role="status" className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                    រូបត្រូវបានដាក់តាមលំដាប់ និងរក្សាទុករួចរាល់។
+                    រូបវិចិត្រសាលត្រូវបានបន្ថែម និងរក្សាទុករួចរាល់។
                 </p>
             )}
             {uploadStatus === "error" && (
@@ -208,8 +344,8 @@ export const GeneralGallerySection: React.FC<GeneralGallerySectionProps> = ({
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-xs font-bold text-foreground">រូបដែលនឹងបង្ហាញលើធៀប</p>
-                            <p className="text-xs text-muted-foreground">ប្រើព្រួញដើម្បីប្ដូរលំដាប់រូប</p>
+                                    <p className="text-xs font-bold text-foreground">រូបវិចិត្រសាលបន្ថែម</p>
+                                    <p className="text-xs text-muted-foreground">រូបទាំងនេះបង្ហាញក្នុងកម្រងរូប មិនជំនួសរូបផ្នែកខាងលើទេ</p>
                         </div>
                         <span className="text-xs font-bold text-primary">{photos.length} រូប</span>
                     </div>

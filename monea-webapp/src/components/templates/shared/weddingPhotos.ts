@@ -105,5 +105,5 @@ export const getWeddingHeroImage = (wedding: WeddingData, fallback = "") => {
         || (wedding.themeSettings?.heroImagePublicId && !isDemoPhoto(wedding.themeSettings.heroImage) ? wedding.themeSettings.heroImage : undefined)
         || (!isDemoPhoto(wedding.themeSettings?.heroImage) ? wedding.themeSettings?.heroImage : undefined)
         || (!isDemoPhoto(wedding.themeSettings?.coverImageUrl) ? wedding.themeSettings?.coverImageUrl : undefined)
-        || (!isDemoPhoto(fallback) ? fallback : "");
+        || (!wedding.previewUploadedImagesOnly && !isDemoPhoto(fallback) ? fallback : "");
 };

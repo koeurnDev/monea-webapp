@@ -1,29 +1,21 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
     TrendingUp,
     ArrowLeft,
     BarChart3,
-    PieChart,
     DollarSign,
     Calendar,
-    ArrowUpRight,
     Loader2,
-    Activity,
     RefreshCcw,
-    Crown,
-    Gift,
-    HeartHandshake,
-    Sparkles,
-    ShieldCheck
+    Sparkles
 } from "lucide-react";
 import { Link } from 'react-router-dom';
-import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n/LanguageProvider";
 
 export default function MasterAnalyticsPage() {
-    const { t, locale } = useTranslation();
+    const { locale } = useTranslation();
     const isKm = locale === 'km';
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -46,18 +38,13 @@ export default function MasterAnalyticsPage() {
     }, []);
 
     const summary = data?.summary || {
-        totalPlanRevenue: 0,
+        templateRevenueUSD: 0,
+        templateRevenueKHR: 0,
+        templateSalesCount: 0,
         usdGifts: 0,
         khrGifts: 0,
-        proCount: 0,
-        premiumCount: 0,
-        freeCount: 0,
         totalWeddings: 0
     };
-
-    const conversionRate = summary.totalWeddings > 0 
-        ? (((summary.proCount + summary.premiumCount) / summary.totalWeddings) * 100).toFixed(1)
-        : "0.0";
 
     const maxMonthlyCount = Math.max(...(data?.weddingsByMonth?.map((m: any) => m.count) || [1]), 1);
 
@@ -98,13 +85,15 @@ export default function MasterAnalyticsPage() {
             </div>
 
             <main className="max-w-[1400px] mx-auto p-4 sm:p-8 space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Card className="bg-card border border-border/80 rounded-2xl shadow-xs">
                         <CardContent className="p-5 flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-bold text-muted-foreground">{isKm ? "ចំណូលពីកញ្ចប់សេវា" : "Plan Revenue"}</p>
-                                <h3 className="text-2xl font-black text-teal-800 dark:text-teal-300 mt-1">${summary.totalPlanRevenue.toFixed(2)}</h3>
-                                <p className="text-xs text-emerald-600 font-bold mt-0.5">USD ({summary.proCount + summary.premiumCount} កម្មវិធី)</p>
+                                <p className="text-xs font-bold text-muted-foreground">{isKm ? "ចំណូលពីការលក់ Template" : "Template Revenue"}</p>
+                                <h3 className="text-2xl font-black text-teal-800 dark:text-teal-300 mt-1">${Number(summary.templateRevenueUSD).toFixed(2)}</h3>
+                                <p className="text-xs text-emerald-600 font-bold mt-0.5">
+                                    {isKm ? "ប្រាក់រៀល" : "KHR"} {Number(summary.templateRevenueKHR).toLocaleString("en-US")} ៛
+                                </p>
                             </div>
                             <div className="w-12 h-12 rounded-xl bg-teal-600/10 text-teal-800 dark:text-teal-300 flex items-center justify-center font-bold">
                                 <DollarSign size={22} />
@@ -115,12 +104,14 @@ export default function MasterAnalyticsPage() {
                     <Card className="bg-card border border-border/80 rounded-2xl shadow-xs">
                         <CardContent className="p-5 flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-bold text-muted-foreground">{isKm ? "អត្រាដំឡើងកញ្ចប់" : "Upgrade Rate"}</p>
-                                <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{conversionRate}%</h3>
-                                <p className="text-xs text-muted-foreground font-bold mt-0.5">នៃមង្គលការសរុបទាំង {summary.totalWeddings}</p>
+                                <p className="text-xs font-bold text-muted-foreground">{isKm ? "ការទិញ Template" : "Template Sales"}</p>
+                                <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{Number(summary.templateSalesCount).toLocaleString()}</h3>
+                                <p className="text-xs text-muted-foreground font-bold mt-0.5">
+                                    {isKm ? "ចំនួនកម្មវិធីមង្គលការសរុប" : "Total weddings"}: {Number(summary.totalWeddings).toLocaleString()}
+                                </p>
                             </div>
                             <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
-                                <Crown size={22} />
+                                <Sparkles size={22} />
                             </div>
                         </CardContent>
                     </Card>
@@ -128,8 +119,8 @@ export default function MasterAnalyticsPage() {
 
                 {/* Main Content Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Left: Monthly Growth Timeline (8 cols) */}
-                    <Card className="lg:col-span-8 bg-card border border-border/80 rounded-2xl shadow-xs overflow-hidden">
+                    {/* Monthly wedding registrations */}
+                    <Card className="lg:col-span-12 bg-card border border-border/80 rounded-2xl shadow-xs overflow-hidden">
                         <CardHeader className="p-6 pb-4 border-b border-border/50 flex flex-row items-center justify-between">
                             <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
                                 <BarChart3 size={18} className="text-teal-700 dark:text-teal-300" />
@@ -176,38 +167,6 @@ export default function MasterAnalyticsPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Right: Package Distribution & Currency (4 cols) */}
-                    <div className="lg:col-span-4 space-y-6">
-                        {/* Package Breakdown */}
-                        <Card className="bg-card border border-border/80 rounded-2xl shadow-xs overflow-hidden">
-                            <CardHeader className="p-5 pb-3 border-b border-border/50">
-                                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                                    <Crown size={16} className="text-amber-500" />
-                                    <span>{isKm ? "ចំណែកកញ្ចប់សេវាកម្ម (Plan Tiers)" : "Plan Distribution"}</span>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-5 space-y-3">
-                                {[
-                                    { name: "FREE PLAN", count: summary.freeCount, price: "$0", color: "bg-slate-500", text: "text-slate-500", bg: "bg-slate-500/10" },
-                                    { name: "PRO PLAN", count: summary.proCount, price: `$${data?.pricing?.standard || 9}`, color: "bg-blue-500", text: "text-blue-600", bg: "bg-blue-500/10" },
-                                    { name: "PREMIUM PLAN", count: summary.premiumCount, price: `$${data?.pricing?.pro || 19}`, color: "bg-amber-500", text: "text-amber-600", bg: "bg-amber-500/10" },
-                                ].map((p, i) => (
-                                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border/60">
-                                        <div className="flex items-center gap-2.5">
-                                            <div className={cn("w-2.5 h-2.5 rounded-full", p.color)} />
-                                            <div>
-                                                <span className="text-xs font-bold text-foreground block">{p.name}</span>
-                                                <span className="text-xs text-muted-foreground">{p.price} / កម្មវិធី</span>
-                                            </div>
-                                        </div>
-                                        <span className={cn("text-xs font-black px-2.5 py-1 rounded-md", p.bg, p.text)}>
-                                            {p.count} កម្មវិធី
-                                        </span>
-                                    </div>
-                                ))}
-                            </CardContent>
-                        </Card>
-                    </div>
                 </div>
             </main>
         </div>

@@ -51,7 +51,8 @@ export function KhmerInvitation({
 
     const honorText = wedding.themeSettings?.customLabels?.invitationHonorTitle || "មានកិត្តិយសសូមគោរពអញ្ជើញ";
 
-    const bodyText = wedding.themeSettings?.customLabels?.invitationBody || 
+    const bodyText = wedding.themeSettings?.invitationText ||
+        wedding.themeSettings?.customLabels?.invitationBody ||
         "ឯកឧត្តម ឧកញ៉ា លោកជំទាវ លោក លោកស្រី អ្នកនាង កញ្ញា និងប្រិយមិត្តអញ្ជើញចូលរួមជាអធិបតីនិងជាភ្ញៀវកិត្តិយសដើម្បីប្រសិទ្ធពរជ័យសិរីសួស្តីជ័យមង្គលក្នុងពិធីរៀបអាពាហ៍ពិពាហ៍ កូនប្រុស / កូនស្រី របស់យើងខ្ញុំ";
 
     return (

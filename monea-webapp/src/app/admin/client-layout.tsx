@@ -146,7 +146,7 @@ export default function AdminClientLayout({ children }: { children: React.ReactN
                         description={t("admin.logout.description")}
                         confirmLabel={t("admin.logout.confirm")}
                         cancelLabel={t("admin.logout.cancel")}
-                        variant="warning"
+                        variant="logout"
                     />
                 )}
 

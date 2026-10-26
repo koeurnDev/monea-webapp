@@ -12,7 +12,7 @@ export default function AnniversaryGallery({ wedding }: { wedding: WeddingData }
     const validItems = getWeddingPhotos(wedding);
     
     const settings = wedding.themeSettings as any;
-    const title = settings?.customLabels?.galleryTitle || "វិចិត្រសាល";
+    const title = settings?.customLabels?.galleryTitle || settings?.customLabels?.gallery_title || "វិចិត្រសាល";
     const galleryStyle = getGalleryDisplayStyle(settings?.galleryStyle);
 
     const openLightbox = (idx: number) => setSelectedIdx(idx);
@@ -63,6 +63,9 @@ export default function AnniversaryGallery({ wedding }: { wedding: WeddingData }
                                 src={item.url}
                                 alt={`Gallery item ${idx + 1}`}
                                 className={`${getGalleryImageClass(galleryStyle)} transform group-hover:scale-105 transition-transform duration-500`}
+                                sizes={galleryStyle === "slider"
+                                    ? "(max-width: 640px) 82vw, 60vw"
+                                    : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 400px"}
                                 loading="lazy"
                             />
                         </m.div>
@@ -116,6 +119,7 @@ export default function AnniversaryGallery({ wedding }: { wedding: WeddingData }
                                 src={validItems[selectedIdx].url}
                                 alt={`Gallery expanded ${selectedIdx + 1}`}
                                 className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
+                                sizes="(max-width: 768px) 100vw, 800px"
                             />
                         </m.div>
                     </div>

@@ -66,7 +66,6 @@ const formatKhmerDatePreview = (dateStr: string | Date | undefined) => {
 const Step3Time: React.FC<Step3TimeProps> = ({ wedding, updateWedding, updateTheme, setWedding }) => {
     const { t } = useTranslation();
     const [mounted, setMounted] = React.useState(false);
-    const [showExtraDetails, setShowExtraDetails] = React.useState(false);
     const isAnniv = wedding.eventType === 'anniversary';
 
     React.useEffect(() => {
@@ -121,7 +120,7 @@ const Step3Time: React.FC<Step3TimeProps> = ({ wedding, updateWedding, updateThe
     };
 
     const khmerDatePreview = mounted ? formatKhmerDatePreview(wedding.date) : "";
-    const updateActivity = (index: number, key: "title" | "time" | "description", value: string) => {
+    const updateActivity = (index: number, key: "title" | "time", value: string) => {
         setWedding((current) => current ? {
             ...current,
             activities: current.activities.map((activity, activityIndex) =>
@@ -188,6 +187,19 @@ const Step3Time: React.FC<Step3TimeProps> = ({ wedding, updateWedding, updateThe
                                     value={mounted ? toDateInputString(wedding.date) : ""}
                                     onChange={(e) => handleDateChange(e.target.value)}
                                     onClick={(e) => (e.target as any).showPicker?.()}
+                                />
+                            </div>
+                            <div className="space-y-1.5 pt-1">
+                                <Label htmlFor="wedding-lunar-date" className="block text-xs font-bold text-foreground">
+                                    {t("wizard.steps.3.lunarDate", { defaultValue: "កាលបរិច្ឆេទចន្ទគតិ" })}
+                                    <span className="ml-1 font-normal text-emerald-600">(ស្វ័យប្រវត្តិ អាចកែបាន)</span>
+                                </Label>
+                                <DebouncedInput
+                                    id="wedding-lunar-date"
+                                    className="h-11 rounded-xl bg-background border border-border font-bold text-xs text-foreground focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground/60 shadow-sm"
+                                    placeholder={t("wizard.steps.3.lunarPlaceholder", { defaultValue: "ឧ. ថ្ងៃ ១៥ កើត ខែពិសាខ ឆ្នាំរោង" })}
+                                    value={wedding.themeSettings?.lunarDate || ""}
+                                    onDebouncedChange={(val) => updateTheme("lunarDate", val)}
                                 />
                             </div>
                         </div>
@@ -346,19 +358,7 @@ const Step3Time: React.FC<Step3TimeProps> = ({ wedding, updateWedding, updateThe
                                     </button>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
-                                <div className="space-y-1.5">
-                                    <Label htmlFor={`activity-title-${index}`} className="text-xs font-bold text-foreground">
-                                        ចំណងជើងវគ្គ <span className="text-primary">(ត្រូវបំពេញ)</span>
-                                    </Label>
-                                    <Input
-                                        id={`activity-title-${index}`}
-                                        value={activity.title}
-                                        onChange={(event) => updateActivity(index, "title", event.target.value)}
-                                        placeholder="ឧ. ពិធីសំពះផ្ទឹម"
-                                        className="h-11 rounded-xl bg-background text-sm"
-                                    />
-                                </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[150px_minmax(0,1fr)]">
                                 <div className="space-y-1.5">
                                     <Label htmlFor={`activity-time-${index}`} className="text-xs font-bold text-foreground">
                                         ម៉ោង
@@ -371,19 +371,18 @@ const Step3Time: React.FC<Step3TimeProps> = ({ wedding, updateWedding, updateThe
                                         className="h-11 rounded-xl bg-background text-sm"
                                     />
                                 </div>
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label htmlFor={`activity-description-${index}`} className="text-xs font-bold text-foreground">
-                                    ព័ត៌មានលម្អិត <span className="font-normal text-muted-foreground">(អាចរំលងបាន)</span>
-                                </Label>
-                                <textarea
-                                    id={`activity-description-${index}`}
-                                    value={activity.description || ""}
-                                    onChange={(event) => updateActivity(index, "description", event.target.value)}
-                                    placeholder="សរសេរព័ត៌មានបន្ថែមអំពីវគ្គនេះ..."
-                                    rows={2}
-                                    className="w-full resize-y rounded-xl border border-input bg-background px-3 py-2.5 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                />
+                                <div className="space-y-1.5">
+                                    <Label htmlFor={`activity-title-${index}`} className="text-xs font-bold text-foreground">
+                                        ចំណងជើងវគ្គ <span className="text-primary">(ត្រូវបំពេញ)</span>
+                                    </Label>
+                                    <Input
+                                        id={`activity-title-${index}`}
+                                        value={activity.title}
+                                        onChange={(event) => updateActivity(index, "title", event.target.value)}
+                                        placeholder="ឧ. ពិធីសំពះផ្ទឹម"
+                                        className="h-11 rounded-xl bg-background text-sm"
+                                    />
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -406,32 +405,6 @@ const Step3Time: React.FC<Step3TimeProps> = ({ wedding, updateWedding, updateThe
                     )}
                 </section>
 
-                <button
-                    type="button"
-                    onClick={() => setShowExtraDetails((value) => !value)}
-                    aria-expanded={showExtraDetails}
-                    className="flex w-full items-center justify-between rounded-2xl border border-border bg-muted/30 px-4 py-3 text-left"
-                >
-                    <span className="font-kantumruy text-xs font-bold text-foreground">បន្ថែមព័ត៌មានកម្មវិធី (អាចរំលងបាន)</span>
-                    <span className={`text-muted-foreground transition-transform ${showExtraDetails ? "rotate-180" : ""}`}>⌄</span>
-                </button>
-
-                {showExtraDetails && <>
-                {/* Lunar Date Field */}
-                <div className="space-y-2">
-                    <Label className="block text-xs font-bold text-foreground">
-                        {t("wizard.steps.3.lunarDate", { defaultValue: "កាលបរិច្ឆេទចន្ទគតិ" })}
-                        <span className="ml-1 font-normal text-emerald-600">(ស្វ័យប្រវត្តិ អាចកែបាន)</span>
-                    </Label>
-                    <DebouncedInput
-                        className="h-11 rounded-xl bg-background border border-border font-bold text-xs text-foreground focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground/60 shadow-sm"
-                        placeholder={t("wizard.steps.3.lunarPlaceholder", { defaultValue: "ឧ. ថ្ងៃ ១៥ កើត ខែពិសាខ ឆ្នាំរោង" })}
-                        value={wedding.themeSettings?.lunarDate || ""}
-                        onDebouncedChange={(val) => updateTheme("lunarDate", val)}
-                    />
-                </div>
-
-                </>}
             </div>
         </div>
     );

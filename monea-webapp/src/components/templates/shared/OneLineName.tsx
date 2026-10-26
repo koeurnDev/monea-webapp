@@ -23,7 +23,8 @@ export function OneLineName({ name, className = "", ariaHidden }: OneLineNamePro
 
         const fitName = () => {
             element.style.removeProperty("font-size");
-            const baseFontSize = Number.parseFloat(getComputedStyle(element).fontSize);
+            const computedStyle = getComputedStyle(element);
+            const baseFontSize = Number.parseFloat(computedStyle.fontSize);
             if (!Number.isFinite(baseFontSize) || baseFontSize <= 0) return;
             const availableWidth = element.clientWidth;
             if (availableWidth <= 0) return;
@@ -38,6 +39,12 @@ export function OneLineName({ name, className = "", ariaHidden }: OneLineNamePro
             measurement.style.setProperty("max-width", "none", "important");
             measurement.style.setProperty("white-space", "nowrap", "important");
             measurement.style.setProperty("font-size", `${baseFontSize}px`, "important");
+            measurement.style.setProperty("font-family", computedStyle.fontFamily, "important");
+            measurement.style.setProperty("font-weight", computedStyle.fontWeight, "important");
+            measurement.style.setProperty("font-style", computedStyle.fontStyle, "important");
+            measurement.style.setProperty("letter-spacing", computedStyle.letterSpacing, "important");
+            measurement.style.setProperty("word-spacing", computedStyle.wordSpacing, "important");
+            measurement.style.setProperty("text-transform", computedStyle.textTransform, "important");
             measurement.style.setProperty("visibility", "hidden", "important");
             document.body.appendChild(measurement);
             const textWidth = measurement.getBoundingClientRect().width;

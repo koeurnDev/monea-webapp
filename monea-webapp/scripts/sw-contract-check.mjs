@@ -58,7 +58,7 @@ const cachesMock = {
         },
         delete: async (key) => cacheStore.delete(typeof key === 'string' ? key : key.url),
     }),
-    keys: async () => ['monea-v4', 'monea-v6', 'monea-v7', 'monea-v8', 'monea-v9', 'unrelated-cache'],
+    keys: async () => ['monea-v4', 'monea-v6', 'monea-v7', 'monea-v8', 'monea-v9', 'monea-v10', 'unrelated-cache'],
     delete: async (name) => {
         deletedCaches.push(name);
         return true;
@@ -147,10 +147,10 @@ console.log('\nService worker contract check\n');
         && deletedCaches.includes('monea-v4')
         && deletedCaches.includes('monea-v7')
         && deletedCaches.includes('monea-v8')
-        && !deletedCaches.includes('monea-v9')
+        && !deletedCaches.includes('monea-v10')
         && !deletedCaches.includes('unrelated-cache')
     ) {
-        pass('new worker purges previous app caches', 'keeps v9 and unrelated caches');
+        pass('new worker purges previous app caches', 'keeps v10 and unrelated caches');
     } else {
         fail('new worker purges previous app caches', `deleted: ${deletedCaches.join(', ')}`);
     }

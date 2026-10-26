@@ -23,7 +23,7 @@ const LABEL_SECTIONS = [
         fields: [
             { key: 'invitationTitle', legacyKey: 'invite_title', label: "ចំណងជើងធៀបការ", type: 'input', placeholder: "ឧ. សិរីសួស្តី អាពាហ៍ពិពាហ៍" },
             { key: 'heroSubtitle', legacyKey: 'hero_subtitle', label: "ពាក្យស្វាគមន៍លើរូបភាព", type: 'input', placeholder: "ឧ. យើងខ្ញុំសូមគោរពអញ្ជើញ..." },
-            { key: 'heroButton', legacyKey: 'hero_button', label: "ប៊ូតុងបើកសំបុត្រ", type: 'input', placeholder: "ឧ. បើកសំបុត្រអញ្ជើញ" },
+            { key: 'heroButton', legacyKey: 'hero_button', label: "អត្ថបទប៊ូតុងលើគម្រប", type: 'input', placeholder: "ឧ. បើកសំបុត្រអញ្ជើញ" },
             { key: 'invitationText', label: "ខ្លឹមសារធៀបអញ្ជើញ", type: 'textarea', placeholder: "ខ្លឹមសារលម្អិតនៃធៀបអញ្ជើញ..." }
         ]
     },

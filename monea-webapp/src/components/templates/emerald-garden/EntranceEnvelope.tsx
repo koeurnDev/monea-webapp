@@ -37,7 +37,7 @@ export const EntranceEnvelope: React.FC<EntranceEnvelopeProps> = ({
                 >
                     {/* Full-bleed Pre-Wedding Photo Background */}
                     <div className="absolute inset-0 z-0 overflow-hidden">
-                        <img
+                        {heroImage && <img
                             src={heroImage}
                             className="absolute inset-0 w-full h-full object-cover object-center brightness-[0.82]"
                             style={{ objectPosition: 'center 20%' }}
@@ -45,7 +45,7 @@ export const EntranceEnvelope: React.FC<EntranceEnvelopeProps> = ({
                             fetchPriority="high"
                             decoding="async"
                             alt="Pre-wedding Cover"
-                        />
+                        />}
                         <div className="absolute inset-0 bg-gradient-to-b from-[#06110c]/55 via-[#071710]/20 to-[#06110c]/80" />
                     </div>
 

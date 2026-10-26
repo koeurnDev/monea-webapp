@@ -1,7 +1,7 @@
 import React from 'react';
 import { MapPin, Navigation } from 'lucide-react';
 import { WeddingData } from '../types';
-import { getDirectMapUrl } from '../shared/mapUtils';
+import { getDirectMapUrl, getMapEmbedUrl, isGoogleMapsShortLink } from '../shared/mapUtils';
 
 interface LocationSectionProps {
     wedding: WeddingData;
@@ -10,18 +10,23 @@ interface LocationSectionProps {
 
 export const LocationSection: React.FC<LocationSectionProps> = ({ wedding, primaryColor }) => {
     const location = wedding.location?.trim() || "";
+    const locationTitle = wedding.themeSettings?.customLabels?.locationTitle || "ទីតាំងប្រារព្ធពិធី";
+    const locationSubtitle = wedding.themeSettings?.customLabels?.locationSubtitle;
     const mapLink = wedding.themeSettings?.mapLink?.trim() || wedding.mapUrl?.trim() || "";
     if (!location && !mapLink) return null;
 
     const directUrl = getDirectMapUrl(mapLink, location);
+    const mapLocation = mapLink || location;
+    const embedUrl = !isGoogleMapsShortLink(mapLocation) ? getMapEmbedUrl(mapLocation, location) : null;
 
     return (
         <section className="py-12 px-4 sm:px-6 bg-transparent text-[#2d352b] font-kantumruy relative overflow-hidden text-center">
             <div className="max-w-md mx-auto space-y-6 relative z-10">
                 <div className="space-y-1">
                     <span className="fh-khmer-safe block px-2 font-khmer-moul text-lg text-[#4d5649] sm:text-2xl">
-                        ទីតាំងប្រារព្ធពិធី
+                        {locationTitle}
                     </span>
+                    {locationSubtitle && <p className="mt-2 text-sm leading-relaxed text-[#76636a]">{locationSubtitle}</p>}
                     <div className="w-12 h-0.5 bg-gradient-to-r from-transparent via-[#8ea07a] to-transparent mx-auto" />
                 </div>
 
@@ -37,6 +42,18 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ wedding, prima
                             {location || "សូមបើក Google Maps ដើម្បីមើលទីតាំង"}
                         </span>
                     </div>
+                    {embedUrl && (
+                        <div className="mt-4 aspect-[4/3] overflow-hidden rounded-xl border border-[#d9d1bf]">
+                            <iframe
+                                title={`ផែនទីបង្ហាញទីតាំង ${location || "កម្មវិធី"}`}
+                                src={embedUrl}
+                                className="h-full w-full border-0"
+                                loading="lazy"
+                                allowFullScreen
+                                referrerPolicy="no-referrer-when-downgrade"
+                            />
+                        </div>
+                    )}
                     <a
                         href={directUrl}
                         target="_blank"

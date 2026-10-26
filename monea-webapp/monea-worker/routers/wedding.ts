@@ -11,6 +11,7 @@ import { cloudinaryDelete } from "@/lib/cloudinary-edge"
 import { publicLimiter, getIP } from "@/lib/ratelimit"
 import { z } from "zod"
 import { generateWeddingCode } from "@/lib/wedding-code"
+import { canUseTemplate } from "../lib/template-licensing"
 
 const weddingRouter = new Hono()
 
@@ -529,10 +530,15 @@ weddingRouter.put('/', async (c) => {
             return c.json({ error: "Editing is locked for this wedding. Please upgrade or contact support." }, 403);
         }
 
-        const isPremium = wedding.packageType === "PREMIUM";
-        
-        if (templateId && templateId.toLowerCase().includes("premium") && !isPremium) {
-            return c.json({ error: "The selected template requires a Premium package." }, 403);
+        // Template validation - check per-template licensing
+        if (templateId && templateId !== wedding.templateId) {
+            const canAccess = await canUseTemplate(wedding.id, templateId);
+            if (!canAccess) {
+                return c.json({
+                    error: "This template requires a license. Please purchase it to use this template.",
+                    code: "TEMPLATE_LICENSE_REQUIRED",
+                }, 403);
+            }
         }
 
         const updateData: any = {

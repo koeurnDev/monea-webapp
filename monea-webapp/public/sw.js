@@ -1,5 +1,5 @@
 /**
- * MONEA Service Worker v9
+ * MONEA Service Worker v10
  * Handles static assets caching & SPA navigation fallback gracefully.
  *
  * v3 changes:
@@ -43,18 +43,18 @@
  *
  * v9 changes:
  *  - Refreshes the app shell with the current MONEO logo and manifest.
+ *
+ * v10 changes:
+ *  - Removes missing legacy PNG icons from the precache and uses existing branding fallbacks.
  */
 
-const CACHE_NAME = 'monea-v9';
+const CACHE_NAME = 'monea-v10';
 const CACHE_PREFIX = 'monea-';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icons/logomoneo.jpg',
-  '/logo.png',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
+  '/icons/logomoneo.webp',
 ];
 
 // Install: Cache critical shell assets immediately

@@ -225,12 +225,12 @@
         "perEvent": "event",
         "perYear": "year",
         "free": {
-          "description": "Create a basic digital invitation for a small event.",
+          "description": "Use the M2 template for free forever for a small event.",
           "features": {
-            "1": "Create a basic digital invitation",
+            "1": "M2 template, free forever",
             "2": "Download a standard image",
             "3": "MONEO branding appears on the invitation",
-            "4": "Use a limited selection of templates"
+            "4": "Manage up to 20 guests"
           },
           "select": "Free Plan"
         },
@@ -374,7 +374,7 @@
       "sending": "Sending...",
       "scrollExplore": "Scroll to explore",
       "wedding": "Wedding",
-      "anniversary": "Anniversary",
+      "anniversary": "Engagement",
       "premium": "Premium",
       "free": "Free"
     },
@@ -647,9 +647,9 @@
     "freeName": "Free",
     "freePrice": "0$",
     "freeDesc": "Perfect for trying out core features",
-    "freeF1": "1 Template",
-    "freeF2": "50 Guests",
-    "freeF3": "Valid for 2 Weeks",
+    "freeF1": "M2 Template",
+    "freeF2": "Up to 20 Guests",
+    "freeF3": "M2 is free forever",
     "proName": "Pro",
     "proPrice": "19$",
     "proDesc": "Best value for couples",
@@ -689,10 +689,10 @@
     "a1": "Yes! You can update your date, location, or time anytime. The guest link will update automatically.",
     "q2": "How secure is the Digital Gift (QR) feature?",
     "a2": "It is highly secure. We simply display your direct bank QR code. Transactions occur directly between the guest's bank app and yours; MONEO does not process the funds.",
-    "q3": "How long is the Free package valid?",
-    "a3": "New accounts can test the core features for 14 days with the M1 template and up to 20 guests.",
-    "q4": "Can I add background music to my invitation?",
-    "a4": "Yes, Standard and Pro plans allow you to select or upload romantic background music for your invitations."
+    "q3": "How long can I use the M2 template for free?",
+    "a3": "The M2 template is free forever; it is not a 14-day trial. Free accounts can manage up to 20 guests.",
+    "q4": "How are template prices determined?",
+    "a4": "M2 is free forever. You can see the prices for other templates on the View All Templates page."
   },
   "cta": {
     "title1": "Ready to create your",
@@ -1347,8 +1347,7 @@
           "desc": "Essential features for your special day.",
           "features": [
             "Guests: Up to 20 people",
-            "Templates: Standard only",
-            "Trial: 14 days"
+            "Template M2: Free forever"
           ]
         },
         "pro": {
@@ -1543,7 +1542,7 @@
     },
     "locked": {
       "title": "Editing Locked",
-      "description": "Your Free Plan has expired its 14-day editing period. Please update your plan to continue editing your invitation or contact the MONEO team.",
+      "description": "This invitation is locked. Please check its status or contact the MONEO team for help.",
       "updateBtn": "Update Plan Now",
       "backBtn": "Back to Dashboard"
     },

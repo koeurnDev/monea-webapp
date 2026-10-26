@@ -156,7 +156,7 @@ export function WeddingSavingsCalculator() {
 
                         <Link
                             to={AUTH_URLS.SIGN_UP}
-                            className="w-full sm:w-auto px-6 h-11 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/20 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                            className="w-full sm:w-auto px-6 h-11 rounded-xl border border-primary bg-primary text-primary-foreground font-bold text-xs shadow-md shadow-primary/15 flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all"
                         >
                             <span>សាកល្បងឥតគិតថ្លៃ</span>
                             <ArrowRight className="w-3.5 h-3.5" />

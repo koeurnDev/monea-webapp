@@ -1,4 +1,4 @@
-import { Outlet, Navigate } from 'react-router-dom'
+import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { ToastProvider } from '@/components/ui/Toast'
 import { NotificationProvider } from '@/components/providers/NotificationProvider'
@@ -11,9 +11,10 @@ import LoadingScreen from '@/components/ui/LoadingScreen'
  */
 export default function DashboardLayout() {
   const { user, isLoading } = useAuth()
+  const location = useLocation()
 
   if (isLoading) return <LoadingScreen />
-  if (!user) return <Navigate to="/sign-in" replace />
+  if (!user) return <Navigate to="/sign-in" replace state={{ from: location }} />
 
   const isStaff = user?.type === 'staff' || user?.role === 'STAFF';
   const isAdmin = user?.type === 'admin' || user?.role === 'ADMIN' || user?.role === 'SUPERADMIN' || user?.role === 'PLATFORM_OWNER';

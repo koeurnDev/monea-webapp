@@ -1,7 +1,8 @@
 import { WeddingData } from '../types';
 import { RevealSection } from '../shared/CinematicComponents';
-import { MoneaBranding } from '@/components/MoneaBranding';
 import { useTranslation } from '@/i18n/LanguageProvider';
+import { MoneaFooterBrand } from '../shared/MoneaFooterBrand';
+import { SocialLinksSection } from '../shared/SocialLinksSection';
 
 interface FooterSectionProps {
     wedding: WeddingData;
@@ -17,18 +18,14 @@ export function FooterSection({ wedding }: FooterSectionProps) {
                         <p className="font-khmer-content text-[15px] md:text-[17px] leading-[2.4] md:leading-[2.8] text-gray-700 max-w-[480px] mx-auto italic font-medium">
                             {t("template.khmerLegacy.footerThankYou")}
                         </p>
-                        <div className="pt-6">
-                            <MoneaBranding packageType={wedding.packageType} />
-                        </div>
                         <div className="flex flex-col items-center gap-2 pt-4">
                             <div className="w-12 h-[1px] bg-gradient-to-r from-transparent via-[#D4AF37]/40 to-transparent" />
                             <p className="font-khmer-moul text-xs md:text-sm text-gold-main/80 tracking-wide">
                                 {wedding.themeSettings?.customLabels?.footerLabel || t("template.khmerLegacy.footerLabel")}
                             </p>
-                            <p className="font-kantumruy text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                                BY MONEO
-                            </p>
                         </div>
+                        <SocialLinksSection wedding={wedding} />
+                        <MoneaFooterBrand className="pt-2" />
                     </div>
                 </RevealSection>
             </div>

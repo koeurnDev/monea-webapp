@@ -25,7 +25,7 @@ export function Footer() {
                         <MoneaLogoMark className="h-12 w-12" />
                     </Link>
                     <p className="text-muted-foreground text-xs mt-2 max-w-sm">
-                        {isKm ? "វេទិកាបង្កើតធៀបមង្គលការឌីជីថល" : "Modern Digital Wedding Invitation & Guest Management Platform"}
+                        {isKm ? "ធៀបការដែលជាប់ចិត្ត កុំភ្លេច MONEO" : "Modern Digital Wedding Invitation & Guest Management Platform"}
                     </p>
                 </div>
 

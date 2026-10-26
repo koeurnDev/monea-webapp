@@ -35,9 +35,17 @@ export default function AuthCallbackPage() {
         console.log("[Auth Callback] Exchanging code for session...");
 
         // Exchange the temporary code for a session
-        const response = await moneaClient.post("/api/auth/session", { code });
+        const response = await moneaClient.post<{ ok?: boolean; success?: boolean; token?: string }>("/api/auth/session", { code });
 
         if (response && !response.error) {
+          if (response.data?.token) {
+            try {
+              sessionStorage.setItem('auth_token', response.data.token);
+              console.log("[Auth Callback] Token stored in sessionStorage");
+            } catch (e) {
+              console.warn("[Auth Callback] Could not store auth_token in sessionStorage:", e);
+            }
+          }
           console.log("[Auth Callback] Session created successfully");
           setStatus("success");
           

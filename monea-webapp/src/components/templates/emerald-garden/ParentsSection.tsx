@@ -55,7 +55,7 @@ export const ParentsSection: React.FC<ParentsSectionProps> = ({ wedding, primary
                         សូមគោរពអញ្ជើញ
                     </p>
                     <p>
-                        {wedding.themeSettings?.customLabels?.formal_invitation_text || 
+                        {wedding.themeSettings?.invitationText || wedding.themeSettings?.customLabels?.formal_invitation_text ||
                         "ឯកឧត្តម លោកជំទាវ អ្នកឧកញ៉ា លោក លោកស្រី អ្នកនាងកញ្ញា អញ្ជើញចូលរួមជាអធិបតី និងជាភ្ញៀវកិត្តិយស ដើម្បីប្រសិទ្ធពរជ័យ សិរីសួស្តី ជ័យមង្គល ក្នុងពិធីមង្គលការ កូនប្រុស-កូនស្រី របស់យើងខ្ញុំ។"}
                     </p>
                 </div>

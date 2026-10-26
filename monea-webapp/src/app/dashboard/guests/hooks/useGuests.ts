@@ -251,7 +251,7 @@ export function useGuests() {
                 title: t("common.upgradeRequired", { defaultValue: "ទាមទារគណនី PRO" }),
                 description: t("guests.upgradeToShare", { defaultValue: "សូមធ្វើការ Upgrade ទៅគណនី PRO ដើម្បីអាចចម្លង និងផ្ញើលីងធៀបទៅកាន់ភ្ញៀវរបស់អ្នកបាន។" }),
                 type: "error",
-                action: { label: t("guests.upgradeBtn", { defaultValue: "Upgrade Now" }), onClick: () => window.location.href = "/dashboard/upgrade" }
+                action: { label: t("guests.upgradeBtn", { defaultValue: "Upgrade Now" }), onClick: () => window.location.href = "/dashboard" }
             });
             return;
         }
@@ -283,7 +283,7 @@ ${link}`;
                 title: t("common.upgradeRequired", { defaultValue: "ទាមទារគណនី PRO" }),
                 description: t("guests.upgradeToShare", { defaultValue: "សូមធ្វើការ Upgrade ទៅគណនី PRO ដើម្បីអាចចម្លង និងផ្ញើលីងធៀបទៅកាន់ភ្ញៀវរបស់អ្នកបាន។" }),
                 type: "error",
-                action: { label: t("guests.upgradeBtn", { defaultValue: "Upgrade Now" }), onClick: () => window.location.href = "/dashboard/upgrade" }
+                action: { label: t("guests.upgradeBtn", { defaultValue: "Upgrade Now" }), onClick: () => window.location.href = "/dashboard" }
             });
             return;
         }
@@ -346,7 +346,7 @@ ${link}`;
                 title: t("common.upgradeRequired", { defaultValue: "ទាមទារគណនី PRO" }),
                 description: t("guests.upgradeToLimit", { defaultValue: "គណនី Free អាចបញ្ចូលភ្ញៀវបានត្រឹម 20 នាក់ប៉ុណ្ណោះ។ សូមធ្វើការ Upgrade ទៅគណនី PRO ដើម្បីបញ្ចូលភ្ញៀវដោយគ្មានដែនកំណត់!" }),
                 type: "error",
-                action: { label: t("guests.upgradeBtn", { defaultValue: "Upgrade Now" }), onClick: () => window.location.href = "/dashboard/upgrade" }
+                action: { label: t("guests.upgradeBtn", { defaultValue: "Upgrade Now" }), onClick: () => window.location.href = "/dashboard" }
             });
             return;
         }

@@ -37,22 +37,26 @@ export const EntranceEnvelope: React.FC<EntranceEnvelopeProps> = ({
                 >
                     {/* Full-bleed Pre-Wedding Photo Background */}
                     <div className="absolute inset-0 z-0 overflow-hidden">
-                        <img
-                            src={heroImage}
-                            className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-70"
-                            style={{ objectPosition: 'center 20%' }}
-                            alt=""
-                            aria-hidden="true"
-                        />
-                        <img
-                            src={heroImage}
-                            className="relative w-full h-full object-cover filter brightness-[0.92] transition-transform duration-1000"
-                            style={{ objectPosition: 'center 20%' }}
-                            loading="eager"
-                            fetchPriority="high"
-                            decoding="async"
-                            alt="Pre-wedding Cover"
-                        />
+                        {heroImage && (
+                            <>
+                                <img
+                                    src={heroImage}
+                                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-70"
+                                    style={{ objectPosition: 'center 20%' }}
+                                    alt=""
+                                    aria-hidden="true"
+                                />
+                                <img
+                                    src={heroImage}
+                                    className="relative w-full h-full object-cover filter brightness-[0.92] transition-transform duration-1000"
+                                    style={{ objectPosition: 'center 20%' }}
+                                    loading="eager"
+                                    fetchPriority="high"
+                                    decoding="async"
+                                    alt="Pre-wedding Cover"
+                                />
+                            </>
+                        )}
                         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/85" />
                     </div>
 

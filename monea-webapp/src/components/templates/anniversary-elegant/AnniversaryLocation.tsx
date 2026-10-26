@@ -1,7 +1,7 @@
 import React from 'react';
 import { m } from 'framer-motion';
 import { MapPin, Navigation } from 'lucide-react';
-import { getDirectMapUrl } from '../shared/mapUtils';
+import { getDirectMapUrl, getMapEmbedUrl, isGoogleMapsShortLink } from '../shared/mapUtils';
 import type { WeddingData } from '../types';
 import { getWeddingSectionPhoto } from "../shared/weddingPhotos";
 
@@ -9,9 +9,13 @@ export default function AnniversaryLocation({ wedding }: { wedding: WeddingData 
     const settings = wedding.themeSettings as any;
     const locationString = settings?.mapLink || wedding.mapUrl || wedding.location || "";
     const venueName = wedding.location || "";
+    const locationTitle = settings?.customLabels?.locationTitle || "ទីតាំងកម្មវិធី";
+    const locationSubtitle = settings?.customLabels?.locationSubtitle;
     if (!locationString && !venueName) return null;
 
     const directMapUrl = getDirectMapUrl(locationString);
+    const embedSource = locationString || venueName;
+    const mapEmbedUrl = !isGoogleMapsShortLink(embedSource) ? getMapEmbedUrl(embedSource, venueName) : null;
     const couplePhoto = getWeddingSectionPhoto(wedding, "location")?.url;
 
     // Safe Maps QR code URL
@@ -27,8 +31,9 @@ export default function AnniversaryLocation({ wedding }: { wedding: WeddingData 
                         <MapPin className="w-5 h-5" />
                     </div>
                     <h2 className="text-xl sm:text-2xl font-khmer-moul text-[#633E42] leading-relaxed">
-                        ទីតាំងកម្មវិធី
+                        {locationTitle}
                     </h2>
+                    {locationSubtitle && <p className="mt-2 text-sm leading-relaxed text-[#76665d]">{locationSubtitle}</p>}
                     <div className="w-16 h-px bg-gradient-to-r from-transparent via-[#CBAF78] to-transparent mx-auto mt-1" />
                 </div>
 
@@ -91,6 +96,18 @@ export default function AnniversaryLocation({ wedding }: { wedding: WeddingData 
                             </p>
                         </a>
                     </div>
+                    {mapEmbedUrl && (
+                        <div className="aspect-[4/3] overflow-hidden rounded-2xl border border-[#D9C6AA] bg-white">
+                            <iframe
+                                title={`ផែនទីបង្ហាញទីតាំង ${venueName || "កម្មវិធី"}`}
+                                src={mapEmbedUrl}
+                                className="h-full w-full border-0"
+                                loading="lazy"
+                                allowFullScreen
+                                referrerPolicy="no-referrer-when-downgrade"
+                            />
+                        </div>
+                    )}
                 </m.div>
             </div>
         </section>

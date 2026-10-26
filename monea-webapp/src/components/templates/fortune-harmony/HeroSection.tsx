@@ -70,8 +70,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ wedding, primaryColor 
                             className="mb-4"
                         >
                             <span className="fh-khmer-safe block px-2 font-khmer-moul text-lg text-[#4b5648] sm:text-2xl">
-                                {isEngagement ? "សិរីមង្គលពិធីភ្ជាប់ពាក្យ" : "សិរីមង្គលអាពាហ៍ពិពាហ៍"}
+                                {wedding.themeSettings?.customLabels?.invitationTitle || (isEngagement ? "សិរីមង្គលពិធីភ្ជាប់ពាក្យ" : "សិរីមង្គលអាពាហ៍ពិពាហ៍")}
                             </span>
+                            {wedding.themeSettings?.customLabels?.heroSubtitle && (
+                                <p className="fh-khmer-safe mt-2 px-2 text-xs leading-relaxed text-[#5c665d] sm:text-sm">
+                                    {wedding.themeSettings.customLabels.heroSubtitle}
+                                </p>
+                            )}
                         </motion.div>
 
                         {couplePhoto && (
@@ -85,6 +90,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ wedding, primaryColor 
                                     src={couplePhoto}
                                     alt={`${groomName} និង ${brideName}`}
                                     className="aspect-[4/5] w-full object-cover"
+                                    sizes="240px"
                                     loading="eager"
                                     decoding="async"
                                 />

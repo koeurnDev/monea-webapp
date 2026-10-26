@@ -65,7 +65,7 @@ const Step4Media: React.FC<Step4MediaProps> = ({
         if (selectedFiles.length === 0) return;
         const invalidFile = selectedFiles.find((file) => !file.type.startsWith("image/"));
         if (invalidFile) {
-            setSaveError("សូមជ្រើសរើសឯកសាររូបភាពប៉ុណ្ណោះ។ រូបភាពនឹងត្រូវដាក់តាមលំដាប់ស្វ័យប្រវត្តិ។");
+            setSaveError("សូមជ្រើសរើសឯកសាររូបភាពប៉ុណ្ណោះ។ រូបនឹងត្រូវបន្ថែមទៅកម្រងរូបវិចិត្រសាល។");
             setUploadStatus("error");
             return;
         }
@@ -118,13 +118,8 @@ const Step4Media: React.FC<Step4MediaProps> = ({
                     <h3 className="text-sm font-black text-foreground">រូបភាពសម្រាប់ធៀប</h3>
                     <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">អាចរំលងបាន</span>
                 </div>
-                <ol className="mt-3 grid gap-2 rounded-xl bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground sm:grid-cols-3">
-                    <li><span className="font-bold text-foreground">១. ជ្រើសរើសរូបទាំងអស់</span><br />អាចជ្រើសរើសច្រើនសន្លឹកម្ដង។</li>
-                    <li><span className="font-bold text-foreground">២. រូបទី១ជារូបគម្រប</span><br />រូបបន្ទាប់ៗទៅផ្នែកផ្សេងៗដោយស្វ័យប្រវត្តិ។</li>
-                    <li><span className="font-bold text-foreground">៣. ពិនិត្យលទ្ធផល</span><br />ចុច «មើលរូបនៅលើធៀប» ដើម្បីមើល។</li>
-                </ol>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                    រូបដែលមានរួចនឹងមិនត្រូវបានជំនួសទេ។ រូបថ្មីបំពេញកន្លែងទំនេរបន្ទាប់ ហើយរូបបន្ថែមលើសនឹងចូលកម្រងរូប។
+                    ជ្រើសរើសរូបសម្រាប់ផ្នែកនីមួយៗខាងក្រោម។ រូបថ្មីនឹងប្ដូរតែកន្លែងដែលអ្នកបានចុចប៉ុណ្ណោះ មិនត្រូវបានដាក់ស្ទួនទៅផ្នែកផ្សេងទេ។
                 </p>
                 <button
                     type="button"
@@ -169,7 +164,10 @@ const Step4Media: React.FC<Step4MediaProps> = ({
                 <span className={`text-muted-foreground transition-transform ${showExtraMedia ? "rotate-180" : ""}`}>⌄</span>
             </button>
             {showExtraMedia && (
-                <>
+                <div className="space-y-3">
+                    <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+                        មិនចាំបាច់ដាក់តន្ត្រីទេ។ បើរំលង ប៊ូតុងសំឡេងនឹងមិនបង្ហាញលើធៀបការឡើយ។
+                    </p>
                     <AudioVideoSection
                         wedding={wedding}
                         isAnniv={wedding.eventType === "anniversary"}
@@ -177,7 +175,7 @@ const Step4Media: React.FC<Step4MediaProps> = ({
                         removeThemeAsset={removeThemeAsset}
                         t={t}
                     />
-                </>
+                </div>
             )}
         </div>
     );

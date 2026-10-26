@@ -260,32 +260,6 @@ export default function DashboardPage() {
                             </Card>
                         </a>
 
-                        {/* Core Action 5: Upgrade / Package Status */}
-                        <Link to="/dashboard/upgrade" className="group">
-                            <Card className="h-full border border-amber-500/20 shadow-sm hover:shadow-md rounded-3xl bg-gradient-to-br from-amber-500/5 to-teal-500/5 dark:from-amber-950/20 dark:to-teal-950/10 transition-all duration-300 group-hover:-translate-y-1">
-                                <CardHeader className="p-6 pb-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-600 flex items-center justify-center">
-                                            <Crown className="w-6 h-6" />
-                                        </div>
-                                        <div className="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 text-xs font-black uppercase font-kantumruy">
-                                            {wedding.packageType || "FREE"}
-                                        </div>
-                                    </div>
-                                    <CardTitle className="text-lg font-black font-kantumruy pt-4">
-                                        {t("dashboard.nav.upgrade", { defaultValue: "កញ្ចប់សេវាកម្ម" })}
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-6 pt-0">
-                                    <p className="text-xs text-muted-foreground font-kantumruy leading-relaxed">
-                                        {wedding.packageType === "PREMIUM" 
-                                            ? t("dashboard.upgrade.promo.premiumActive")
-                                            : t("dashboard.upgrade.promo.description")
-                                        }
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </Link>
                     </div>
                 </div>
             )}

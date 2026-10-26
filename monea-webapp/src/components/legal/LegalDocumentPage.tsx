@@ -70,12 +70,13 @@ export function LegalDocumentPage({ documentKey }: { documentKey: LegalDocumentK
             <meta property="og:url" content={pageUrl} />
             <meta property="og:title" content={`${document.title} | MONEO`} />
             <meta property="og:description" content={description} />
-            <meta property="og:image" content="https://moneoez.com/icons/logomoneo.jpg" />
+            <meta property="og:image" content="https://moneoez.com/icons/logomoneo.webp" />
+            <meta property="og:image:type" content="image/webp" />
             <meta name="twitter:card" content="summary" />
             <meta name="twitter:url" content={pageUrl} />
             <meta name="twitter:title" content={`${document.title} | MONEO`} />
             <meta name="twitter:description" content={description} />
-            <meta name="twitter:image" content="https://moneoez.com/icons/logomoneo.jpg" />
+            <meta name="twitter:image" content="https://moneoez.com/icons/logomoneo.webp" />
         </Helmet>
         <SmoothScroll>
             <PageTransition>

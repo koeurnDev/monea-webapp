@@ -18,10 +18,11 @@ import { PaymentSection } from "./sections/PaymentSection";
 import { LabelsSection } from "./sections/LabelsSection";
 import { HistorySection } from "./sections/HistorySection";
 import { NEA_M05_COLOR_PRESETS } from "@/lib/nea-m05-colors";
-import { NEA_M05_FONT_OPTIONS } from "@/lib/nea-m05-fonts";
 import { getTemplateConfig } from "@/components/templates/template-config";
 import { getTemplateDefaultPaperColor, TEMPLATE_PAPER_TEXTURES } from "@/lib/template-paper";
 import { isRecommendedSocialPreviewAspectRatio } from "@/lib/social-preview";
+
+const MAX_STORY_IMAGES = 30;
 
 interface Step5ExtraProps {
     wedding: WeddingData;
@@ -92,12 +93,13 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
         getTemplateConfig(wedding.templateId)?.visibilityControls || [];
     const [socialPreviewUrl, setSocialPreviewUrl] = React.useState<string | null>(wedding.themeSettings?.socialPreviewImage || null);
     const [socialPreviewAspectWarning, setSocialPreviewAspectWarning] = React.useState<string | null>(null);
+    const [storyImageLimitNotice, setStoryImageLimitNotice] = React.useState<string | null>(null);
     const socialPreviewFallbackUrl = [
         wedding.themeSettings?.heroImage,
         wedding.galleryItems?.[0]?.url,
     ].find((url): url is string =>
         typeof url === "string" && url.length > 0 && !/^(?:data|blob):/i.test(url)
-    ) || "/icons/icon-512x512.png";
+    ) || "/icons/logomoneo.webp";
     const socialPreviewImage = socialPreviewUrl && !/^(?:data|blob):/i.test(socialPreviewUrl)
         ? socialPreviewUrl
         : socialPreviewFallbackUrl;
@@ -142,6 +144,10 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
         folder: wedding.id,
         onSuccess: (url, publicId) => {
             const currentImages = storyMediaRef.current.images;
+            if (currentImages.filter(Boolean).length >= MAX_STORY_IMAGES) {
+                setStoryImageLimitNotice(`អាចបញ្ចូលរូបបានច្រើនបំផុត ${MAX_STORY_IMAGES} សន្លឹកប៉ុណ្ណោះ។`);
+                return;
+            }
             const currentPublicIds = storyMediaRef.current.publicIds;
             const nextImages = [...currentImages, url];
             const nextPublicIds = [...currentPublicIds, publicId || ""];
@@ -182,16 +188,16 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
         void uploadSocialPreview(file);
     };
     const sectionShortcuts = [
-        { id: 'theme', label: 'ពណ៌', icon: Palette },
         { id: 'payment', label: 'KHQR', icon: CreditCard },
         { id: 'story', label: 'រឿងរ៉ាវ', icon: BookOpen },
         { id: 'social', label: 'Social', icon: MessageSquare },
         { id: 'social-preview', label: 'រូប Link', icon: Share2 },
         { id: 'display', label: 'បង្ហាញ', icon: Eye },
-        { id: 'typography', label: 'ពុម្ពអក្សរ', icon: Type },
         { id: 'labels', label: 'ពាក្យលើធៀប', icon: Type },
     ];
-    const selectedSectionId = activeAccordion || 'theme';
+    const selectedSectionId = activeAccordion === 'theme' || activeAccordion === 'typography'
+        ? 'payment'
+        : activeAccordion || 'payment';
     const openSection = (sectionId: string) => {
         setActiveAccordion(sectionId);
     };
@@ -229,7 +235,7 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
                     <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">ភាគច្រើនអាចរំលងបាន</span>
                 </div>
                 <p className="mt-1 hidden text-xs leading-relaxed text-muted-foreground sm:block">
-                    កែពណ៌ និងរូបរាងតាមចិត្ត។ KHQR បណ្តាញសង្គម និងសារផ្សេងៗជាជម្រើសបន្ថែម។
+                    KHQR បណ្តាញសង្គម និងសារផ្សេងៗជាជម្រើសបន្ថែម។
                 </p>
             </div>
 
@@ -272,7 +278,7 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
                     hideHeader
                     icon={Palette}
                     title="ពណ៌ធៀប"
-                    isOpen={selectedSectionId === 'theme'}
+                    isOpen={false}
                     onClick={() => setActiveAccordion('theme')}
                 >
                     <div className="space-y-4 pt-2">
@@ -589,7 +595,7 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
                         <div className="flex items-center justify-between gap-2">
                             <Label className="text-xs font-bold text-foreground">រូបភាពរឿងរ៉ាវ (អាចរំលងបាន)</Label>
                             <span className="text-xs font-semibold text-muted-foreground">
-                                {storyImages?.filter(Boolean).length || 0} រូប
+                                {storyImages?.filter(Boolean).length || 0}/{MAX_STORY_IMAGES} រូប
                             </span>
                         </div>
                         <input
@@ -601,7 +607,17 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
                             onChange={async (event) => {
                                 const input = event.currentTarget;
                                 const files = Array.from(input.files || []);
-                                for (const file of files) {
+                                const remainingSlots = Math.max(
+                                    0,
+                                    MAX_STORY_IMAGES - storyMediaRef.current.images.filter(Boolean).length,
+                                );
+                                const acceptedFiles = files.slice(0, remainingSlots);
+                                setStoryImageLimitNotice(
+                                    files.length > acceptedFiles.length
+                                        ? `អាចបញ្ចូលបានតែ ${remainingSlots} សន្លឹកទៀត ដើម្បីមិនឱ្យលើស ${MAX_STORY_IMAGES} សន្លឹក។`
+                                        : null,
+                                );
+                                for (const file of acceptedFiles) {
                                     await uploadStoryImage(file);
                                 }
                                 input.value = "";
@@ -624,7 +640,11 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
                                                 <Trash2 className="h-3 w-3" /> លុប
                                             </button>
                                         </div>
-                                        <textarea
+                                        <Label className="mt-2 block text-xs font-semibold text-muted-foreground">
+                                            ចំណងជើងរូបភាព (អាចរំលងបាន)
+                                        </Label>
+                                        <input
+                                            type="text"
                                             value={wedding.themeSettings?.storyImageCaptions?.[index] || ""}
                                             onChange={(event) => {
                                                 const captions = [...storyMediaRef.current.captions];
@@ -632,11 +652,10 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
                                                 storyMediaRef.current = { ...storyMediaRef.current, captions };
                                                 updateTheme({ storyImageCaptions: captions });
                                             }}
-                                            rows={2}
                                             maxLength={200}
-                                            aria-label={`Caption រូបភាពរឿងរ៉ាវទី ${index + 1}`}
-                                            placeholder={`សរសេរ caption សម្រាប់រូបទី ${index + 1}...`}
-                                            className="mt-2 w-full resize-y rounded-lg border border-border bg-background p-2 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            aria-label={`ចំណងជើងរូបភាពរឿងរ៉ាវទី ${index + 1} (អាចរំលងបាន)`}
+                                            placeholder="សរសេរចំណងជើងរូបនេះ..."
+                                            className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                         />
                                     </div>
                                 ))}
@@ -653,11 +672,15 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
                         <button
                             type="button"
                             onClick={() => storyImageInputRef.current?.click()}
-                            disabled={storyImageUploading}
+                            disabled={storyImageUploading || (storyImages?.filter(Boolean).length || 0) >= MAX_STORY_IMAGES}
                             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/40 px-4 py-3 text-xs font-bold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-wait disabled:opacity-60"
                         >
                             {storyImageUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                            {storyImageUploading ? `កំពុងបញ្ចូល ${storyImageProgress}%` : storyImages?.length ? "បន្ថែមរូបភាព" : "បញ្ចូលរូបភាព"}
+                            {storyImageUploading
+                                ? `កំពុងបញ្ចូល ${storyImageProgress}%`
+                                : (storyImages?.filter(Boolean).length || 0) >= MAX_STORY_IMAGES
+                                    ? `បានដល់ចំនួនកំណត់ ${MAX_STORY_IMAGES} សន្លឹក`
+                                    : storyImages?.length ? "បន្ថែមរូបភាព" : "បញ្ចូលរូបភាព"}
                         </button>
                         {!storyImages?.length && !storyImageSkipped && (
                             <button
@@ -688,14 +711,17 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
                         {storyImageError && (
                             <p role="alert" className="text-xs font-semibold text-rose-600 dark:text-rose-400">{storyImageError}</p>
                         )}
+                        {storyImageLimitNotice && (
+                            <p role="status" className="text-xs font-semibold text-amber-700 dark:text-amber-400">{storyImageLimitNotice}</p>
+                        )}
                         {!storyImageSkipped && (
                             <p className="text-xs leading-relaxed text-muted-foreground">
-                                អាចជ្រើសរើសរូបច្រើនក្នុងពេលតែមួយ ឬបន្ថែមពេលក្រោយបាន។ រូបនឹងបង្ហាញជាមួយផ្នែករឿងរ៉ាវ ហើយអ្នកអាចលុបរូបនីមួយៗបាន។
+                                អាចជ្រើសរើសរូបច្រើនក្នុងពេលតែមួយ ឬបន្ថែមពេលក្រោយបាន (មិនលើស {MAX_STORY_IMAGES} សន្លឹក)។ រូបនឹងបង្ហាញជាមួយផ្នែករឿងរ៉ាវ ហើយអ្នកអាចលុបរូបនីមួយៗបាន។
                             </p>
                         )}
                     </div>
                     <div className="space-y-1.5">
-                            <Label className="text-xs font-bold text-foreground">ដំណើររឿងផ្តើមស្នេហ៍ (Our Love Story)</Label>
+                            <Label className="text-xs font-bold text-foreground">ដំណើររឿងផ្តើមស្នេហ៍ (អាចរំលងបាន)</Label>
                             <DebouncedTextarea 
                                 className="min-h-[85px] rounded-xl border border-border bg-background p-3 text-xs text-foreground focus-visible:ring-2 focus-visible:ring-ring shadow-sm"
                                 value={wedding.themeSettings?.loveStory || ""} 
@@ -736,6 +762,9 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
                     onClick={() => setActiveAccordion('social')}
                 >
                     <div className="space-y-4 pt-2">
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                            បញ្ចូលតំណ Facebook, Telegram ឬលេខទូរស័ព្ទ។ អ្នកអាចគ្រប់គ្រងការបង្ហាញវានៅផ្នែក «ការបង្ហាញ»។
+                        </p>
                         <div className="space-y-1.5">
                             <Label className="flex items-center gap-2 text-xs font-bold text-foreground">
                                 <div className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center"><Facebook size={12} /></div>
@@ -886,104 +915,22 @@ const Step5Extra: React.FC<Step5ExtraProps> = ({
                                     </div>
                                 ))}
                             </div>
+                            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-3">
+                                <div className="flex items-center gap-2.5">
+                                    <Share2 size={15} className="text-primary" />
+                                    <span className="text-xs font-bold text-foreground">តំណ Facebook, Telegram និងលេខទូរស័ព្ទ</span>
+                                </div>
+                                <Switch
+                                    id="showSocialLinks"
+                                    className="data-[state=checked]:bg-primary"
+                                    checked={wedding.themeSettings?.showSocialLinks !== false}
+                                    onCheckedChange={(checked) => updateTheme("showSocialLinks", checked)}
+                                    aria-label="បង្ហាញតំណ Social លើធៀប"
+                                />
+                            </div>
                         </div>
 
                     </div>
-                </AccordionItem>
-
-                {/* 7. Typography */}
-                <AccordionItem
-                    id="step5-typography"
-                    hideWhenClosed
-                    hideHeader
-                    icon={Type}
-                    title="ពុម្ពអក្សរ"
-                    subtitle="រចនាប័ទ្ម · ជ្រើសរើសពុម្ពអក្សរដែលប្រើលើធៀប"
-                    isOpen={selectedSectionId === 'typography'}
-                    onClick={() => setActiveAccordion('typography')}
-                >
-                    <div className="space-y-3 pt-2">
-                        {!isNeaM05 && (
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-bold text-foreground">ពុម្ពអក្សរទូទៅ (Font Family)</Label>
-                                <select 
-                                    className="w-full h-11 border border-border rounded-xl px-3.5 bg-background text-xs text-foreground font-bold shadow-sm outline-none cursor-pointer"
-                                    value={wedding.themeSettings?.fontStyle || 'default'} 
-                                    onChange={(e) => updateTheme('fontStyle', e.target.value)}
-                                >
-                                    <option value="default">Kantumruy Pro (ស្តង់ដារ)</option>
-                                    <option value="suwannaphum">Suwannaphum (ស្រឡះ)</option>
-                                    <option value="battambang">Battambang (មូល)</option>
-                                    <option value="preahvihear">Preahvihear (ប្រណីត)</option>
-                                </select>
-                            </div>
-                        )}
-
-                            {isNeaM05 && (
-                                <div className="space-y-5 border-t border-border pt-4">
-                                    <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs leading-relaxed">
-                                        <p className="mb-2 font-bold text-foreground">ពុម្ពអក្សរឥតគិតថ្លៃពី Google Fonts · ផ្ទុកស្វ័យប្រវត្តិ</p>
-                                        <div className="grid gap-1.5 text-muted-foreground sm:grid-cols-2">
-                                            <p><span className="font-semibold text-foreground">ចំណងជើង · Headings:</span> Moul</p>
-                                            <p><span className="font-semibold text-foreground">ឡូហ្គោឈ្មោះ · Name logo:</span> Moulpali</p>
-                                            <p><span className="font-semibold text-foreground">អត្ថបទ · Body:</span> Kantumruy Pro</p>
-                                            <p><span className="font-semibold text-foreground">អក្សរអង់គ្លេស · English script:</span> Pinyon Script + Cormorant Garamond</p>
-                                        </div>
-                                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                                            <a className="text-primary underline underline-offset-2 hover:text-primary/80" href="https://fonts.google.com/specimen/Moul" target="_blank" rel="noreferrer">Moul</a>
-                                            <a className="text-primary underline underline-offset-2 hover:text-primary/80" href="https://fonts.google.com/specimen/Moulpali" target="_blank" rel="noreferrer">Moulpali</a>
-                                            <a className="text-primary underline underline-offset-2 hover:text-primary/80" href="https://fonts.google.com/specimen/Kantumruy+Pro" target="_blank" rel="noreferrer">Kantumruy Pro</a>
-                                            <a className="text-primary underline underline-offset-2 hover:text-primary/80" href="https://fonts.google.com/specimen/Pinyon+Script" target="_blank" rel="noreferrer">Pinyon Script</a>
-                                            <a className="text-primary underline underline-offset-2 hover:text-primary/80" href="https://fonts.google.com/specimen/Cormorant+Garamond" target="_blank" rel="noreferrer">Cormorant Garamond</a>
-                                            <a className="text-primary underline underline-offset-2 hover:text-primary/80" href="https://fonts.google.com/specimen/Chenla" target="_blank" rel="noreferrer">Chenla</a>
-                                            <a className="text-primary underline underline-offset-2 hover:text-primary/80" href="https://fonts.google.com/specimen/Content" target="_blank" rel="noreferrer">Content</a>
-                                            <a className="text-primary underline underline-offset-2 hover:text-primary/80" href="https://fonts.google.com/specimen/Noto+Sans+Khmer" target="_blank" rel="noreferrer">Noto Sans Khmer</a>
-                                            <a className="text-primary underline underline-offset-2 hover:text-primary/80" href="https://fonts.google.com/specimen/Odor+Mean+Chey" target="_blank" rel="noreferrer">Odor Mean Chey</a>
-                                            <a className="text-primary underline underline-offset-2 hover:text-primary/80" href="https://fonts.google.com/specimen/Siemreap" target="_blank" rel="noreferrer">Siemreap</a>
-                                        </div>
-                                    </div>
-                                    <p className="text-xs leading-relaxed text-muted-foreground">
-                                        ជ្រើសរើសពុម្ពអក្សរសម្រាប់ឡូហ្គោឈ្មោះ និងចំណងជើង។ អាចប្រើជម្រើសខាងក្រោម ហើយចុចលើគំរូ ដើម្បីមើលលទ្ធផល។
-                                    </p>
-                                    <style>{NEA_M05_FONT_OPTIONS.map(({ id, stack }) =>
-                                        `.m05-font-preview-${id}{font-family:${stack}!important;}`
-                                    ).join("\n")}</style>
-                                    {([
-                                        { key: "m05NameFont", label: "ឡូហ្គោឈ្មោះ (Name logo)", value: wedding.themeSettings?.m05NameFont || "moulpali" },
-                                        { key: "m05TitleFont", label: "ចំណងជើង (Headings)", value: wedding.themeSettings?.m05TitleFont || "moul" },
-                                    ] as const).map(({ key, label, value }) => (
-                                        <fieldset key={key} className="space-y-2">
-                                            <legend className="text-xs font-bold text-foreground">{label}</legend>
-                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                                {NEA_M05_FONT_OPTIONS.map((font) => {
-                                                    const selected = value === font.id;
-                                                    return (
-                                                        <button
-                                                            key={font.id}
-                                                            type="button"
-                                                            aria-pressed={selected}
-                                                            onClick={() => updateTheme(key, font.id)}
-                                                            className={clsx(
-                                                                "min-h-[76px] rounded-xl border p-2 text-left transition-colors",
-                                                                selected
-                                                                    ? "border-primary bg-accent ring-1 ring-primary"
-                                                                    : "border-border bg-muted/40 hover:border-primary/40"
-                                                            )}
-                                                        >
-                                                            <span className="block truncate text-xs font-bold text-muted-foreground">{font.name}</span>
-                                                            <span className={`m05-font-preview-${font.id} mt-1 block truncate text-base text-foreground`} lang="km">
-                                                                {wedding.groomName || "រ៉ា"} &amp; {wedding.brideName || "មុន្នី"}
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </fieldset>
-                                    ))}
-                                </div>
-                            )}
-
-                        </div>
                 </AccordionItem>
 
                 {/* 6. Custom Labels */}

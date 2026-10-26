@@ -136,17 +136,17 @@ export function WeddingJourneySection() {
                                 onClick={() => setActiveTab(step.id)}
                                 className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between relative overflow-hidden ${
                                     isSelected 
-                                        ? "bg-card border-rose-500 shadow-md ring-2 ring-rose-500/20" 
+                                        ? "bg-card border-primary shadow-md ring-2 ring-primary/20" 
                                         : "bg-card/60 hover:bg-card border-border/80 text-muted-foreground hover:text-foreground"
                                 }`}
                             >
                                 <div className="flex items-center justify-between mb-2">
                                     <span className={`text-xs font-black uppercase px-2 py-0.5 rounded-md ${
-                                        isSelected ? "bg-rose-600 text-white" : "bg-muted text-muted-foreground"
+                                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                                     }`}>
                                         ជំហាន {step.stepNumber}
                                     </span>
-                                    <Icon className={`w-4 h-4 ${isSelected ? "text-rose-600" : "text-muted-foreground"}`} />
+                                    <Icon className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
                                 </div>
                                 <div className={`text-xs font-bold line-clamp-1 ${isSelected ? "text-foreground" : "text-muted-foreground"}`}>
                                     {step.title.split(" ")[0]} {step.title.split(" ")[1]}

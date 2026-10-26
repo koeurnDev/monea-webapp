@@ -78,7 +78,7 @@ export default function ForgotPasswordPage() {
             <div className="z-10 mb-3 flex w-full max-w-[420px] items-center justify-between px-1">
                 <Link
                     to={AUTH_URLS.SIGN_IN}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-primary bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-xs transition-all hover:bg-primary/90 active:scale-95"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary shadow-xs transition-all hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-95"
                 >
                     <ChevronLeft size={15} />
                     <span>{t('common.auth.back', { defaultValue: 'ត្រឡប់' })}</span>
@@ -131,7 +131,7 @@ export default function ForgotPasswordPage() {
                             <div className="flex flex-col gap-2 sm:flex-row">
                                 <Button
                                     asChild
-                                    className="h-11 flex-1 rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-md transition-all hover:bg-primary/90"
+                                    className="h-11 flex-1 rounded-xl border border-primary bg-primary text-primary-foreground text-sm font-bold shadow-md transition-all hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
                                     <Link to={AUTH_URLS.SIGN_IN}>
                                         {t('common.auth.backToSignIn', { defaultValue: 'ត្រឡប់ទៅចូលគណនី' })}
@@ -213,7 +213,7 @@ export default function ForgotPasswordPage() {
                                 <Button
                                     type="submit"
                                     disabled={isLoading || (showTurnstile && (!import.meta.env.VITE_TURNSTILE_SITE_KEY || !turnstileToken))}
-                                    className="h-12 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-md transition-all hover:bg-primary/90 active:bg-primary/80"
+                                    className="min-h-12 h-auto w-full whitespace-normal rounded-xl border border-primary bg-primary px-4 py-3 text-center text-sm font-bold text-primary-foreground shadow-lg shadow-primary/15 transition-all hover:-translate-y-0.5 hover:bg-primary/90 active:translate-y-0 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
                                 >
                                     {isLoading ? (
                                         <span className="flex items-center justify-center gap-2">

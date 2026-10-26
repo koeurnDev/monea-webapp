@@ -1,7 +1,7 @@
 import React from 'react';
 import { MapPin, Navigation } from 'lucide-react';
 import { WeddingData } from '../types';
-import { getDirectMapUrl } from '../shared/mapUtils';
+import { getDirectMapUrl, getMapEmbedUrl, isGoogleMapsShortLink } from '../shared/mapUtils';
 import { getWeddingHeroImage, getWeddingSectionPhoto } from "../shared/weddingPhotos";
 import { PhotoImage } from "../shared/PhotoImage";
 
@@ -12,11 +12,14 @@ interface LocationSectionProps {
 
 export const LocationSection: React.FC<LocationSectionProps> = ({ wedding, primaryColor }) => {
     const location = wedding.location?.trim() || "";
+    const locationTitle = wedding.themeSettings?.customLabels?.locationTitle || "ទីតាំងប្រារព្ធពិធី";
+    const locationSubtitle = wedding.themeSettings?.customLabels?.locationSubtitle;
     const mapLink = wedding.themeSettings?.mapLink?.trim() || wedding.mapUrl?.trim() || "";
     const mapLocation = mapLink || location;
     if (!mapLocation) return null;
 
     const directUrl = getDirectMapUrl(mapLocation, location);
+    const embedUrl = !isGoogleMapsShortLink(mapLocation) ? getMapEmbedUrl(mapLocation, location) : null;
     const locationPhoto = getWeddingSectionPhoto(wedding, "location")?.url || getWeddingHeroImage(wedding);
 
     return (
@@ -24,8 +27,9 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ wedding, prima
             <div className="relative z-10 mx-auto max-w-md space-y-6">
                 <div className="space-y-1">
                     <h2 className="block font-khmer-moul text-xl text-[#1B4332] sm:text-2xl">
-                        ទីតាំងប្រារព្ធពិធី
+                        {locationTitle}
                     </h2>
+                    {locationSubtitle && <p className="mt-2 text-sm leading-relaxed text-emerald-900/70">{locationSubtitle}</p>}
                     <div className="mx-auto h-0.5 w-12 bg-gradient-to-r from-transparent via-emerald-600 to-transparent" />
                 </div>
 
@@ -36,6 +40,7 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ wedding, prima
                                 src={locationPhoto}
                                 alt="រូបភាពទីតាំងប្រារព្ធពិធី"
                                 className="h-full w-full object-cover"
+                                sizes="(max-width: 640px) 50vw, 400px"
                                 loading="lazy"
                             />
                         </div>
@@ -46,6 +51,19 @@ export const LocationSection: React.FC<LocationSectionProps> = ({ wedding, prima
                         <span className="break-words">{location || mapLink}</span>
                     </div>
                 </div>
+
+                {embedUrl && (
+                    <div className="aspect-[4/3] overflow-hidden rounded-xl border border-emerald-900/10 bg-white">
+                        <iframe
+                            title={`ផែនទីបង្ហាញទីតាំង ${location || "កម្មវិធី"}`}
+                            src={embedUrl}
+                            className="h-full w-full border-0"
+                            loading="lazy"
+                            allowFullScreen
+                            referrerPolicy="no-referrer-when-downgrade"
+                        />
+                    </div>
+                )}
 
                 <div>
                     <a

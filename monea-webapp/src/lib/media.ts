@@ -1,10 +1,10 @@
 /**
  * MONEA media URL optimiser.
  *
- * Every media CDN the platform uses (Cloudinary, ImageKit, Unsplash) supports
- * on-the-fly transformations. Loading an untouched original is the single
- * biggest avoidable cost on wedding/gallery pages, where uploads can be
- * 3000-5000 px JPEGs.
+ * Cloudinary, ImageKit, and Unsplash support on-the-fly transformations.
+ * R2 media uses its original URL because this zone does not serve
+ * `/cdn-cgi/image` transformations for the media custom domain. Uploads can
+ * be large, but the original URL is preferable to a transform URL that 404s.
  *
  * Design rules (deliberately conservative):
  *  - Unknown hosts are returned **unchanged**. This function can never break an
@@ -100,6 +100,14 @@ function unsplashUrl(url: string, options: MediaTransformOptions): string {
   }
 }
 
+export function getOriginalMediaUrl(url: unknown): string | null {
+  if (typeof url !== 'string') return null;
+  const match = url.match(
+    /^https:\/\/moneoez\.com\/cdn-cgi\/image\/[^/]+\/(https:\/\/media\.moneoez\.com\/.+)$/i,
+  );
+  return match?.[1] || url;
+}
+
 /**
  * Returns an optimised URL for the given transform.
  * When no width is supplied the function still adds `f_auto`/`q_auto` for
@@ -134,7 +142,8 @@ export function buildSrcSet(
     return undefined;
   }
 
-  const unique = [...new Set(widths.filter((w) => w > 0))].sort((a, b) => a - b);
+  const normalizedWidths = widths.filter((width) => width > 0);
+  const unique = [...new Set(normalizedWidths)].sort((a, b) => a - b);
   const entries = unique.map(
     (w) => `${optimizeMediaUrl(url, { ...options, width: w })} ${w}w`
   );
@@ -143,9 +152,27 @@ export function buildSrcSet(
   return entries.join(', ');
 }
 
-/** Common gallery widths - thumbnail, grid, lightbox, full bleed. */
+/** Standardized source widths keep responsive variants reusable in the CDN cache. */
 export const MEDIA_WIDTHS = {
-  thumbnail: [120, 240, 320],
-  grid: [320, 480, 640, 960],
-  lightbox: [640, 960, 1280, 1920],
+  thumbnail: [400, 800],
+  grid: [400, 800],
+  lightbox: [400, 800, 1200, 1600],
+  // Finite, UI-critical srcSet widths derived from template breakpoints.
+  // Hero cards are rendered in two branches (mobile/desktop) with fixed
+  // viewport widths; see performance notes.
+  hero: {
+    mobile: [800],
+    desktop: [800, 1200, 1600],
+  },
+  // Finite, UI-critical gallery srcSet widths.
+  // Source of truth: gallery layouts' `sizes` strings.
+  gallery: {
+    // Slider cards: `(max-width: 640px) 82vw, 60vw`
+    // Slider cards use the shared 400/800px variants.
+    slider: [400, 800],
+    // Grid/polaroid cards use the shared 400/800px variants.
+    grid: [400, 800],
+    // Lightbox images can use 800/1200/1600px variants.
+    lightbox: [400, 800, 1200, 1600],
+  },
 } as const;

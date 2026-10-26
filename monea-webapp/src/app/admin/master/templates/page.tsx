@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import { LayoutGrid, Loader2, Pencil, Save, X } from "lucide-react";
+import { DollarSign, Eye, LayoutGrid, Loader2, Pencil, Save, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/Toast";
 import { moneaClient } from "@/lib/api-client";
-import { TEMPLATE_DEFINITIONS } from "@/components/templates/template-config";
+import {
+    normalizeTemplatePresentationMetadata,
+    TEMPLATE_DEFINITIONS,
+} from "@/components/templates/template-config";
 import type { TemplatePresentationMetadata } from "@/components/templates/template-config";
 import ImageUploadWidget from "@/components/ui/image-upload-widget";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 type Availability = Record<string, boolean>;
 type TemplateMetadata = Record<string, TemplatePresentationMetadata>;
@@ -36,7 +40,7 @@ export default function TemplateAvailabilityPage() {
             setLoadError(metadataResponse.error || "Failed to load template metadata");
         } else {
             setAvailability(availabilityResponse.data);
-            setMetadata(metadataResponse.data);
+            setMetadata(normalizeTemplatePresentationMetadata(metadataResponse.data));
         }
         setLoading(false);
     }, []);
@@ -88,7 +92,7 @@ export default function TemplateAvailabilityPage() {
                 type: "error",
             });
         } else {
-            setMetadata(response.data);
+            setMetadata(normalizeTemplatePresentationMetadata(response.data));
             setEditingId(null);
             setDraft(null);
             showToast({ title: "បានរក្សាទុកព័ត៌មាន Template", type: "success" });
@@ -110,9 +114,15 @@ export default function TemplateAvailabilityPage() {
                 <div className="min-w-0">
                     <h1 className="text-xl font-black text-foreground sm:text-2xl">គ្រប់គ្រង Template</h1>
                     <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                        បើក ឬបិទ template សម្រាប់ការជ្រើសរើសថ្មី។ ការបិទមិនប៉ះពាល់ដល់ invitation ដែលកំពុងប្រើ template នោះទេ។
+                        គ្រប់គ្រងព័ត៌មាន រូបភាព សិទ្ធិប្រើប្រាស់ និងតម្លៃរបស់ Template នៅទីនេះ។
                     </p>
                 </div>
+                <Button asChild variant="outline" className="ml-auto shrink-0 gap-2">
+                    <Link to="/admin/master/template-pricing">
+                        <DollarSign className="h-4 w-4" />
+                        តម្លៃ និងបញ្ចុះតម្លៃ
+                    </Link>
+                </Button>
             </header>
 
             {loading ? (
@@ -140,11 +150,17 @@ export default function TemplateAvailabilityPage() {
                                 <CardContent className="space-y-3 p-3 sm:space-y-4 sm:p-5">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                                         <div className="flex min-w-0 items-center gap-3 sm:flex-1 sm:gap-4">
-                                            <img
-                                                src={details?.image || template.image}
-                                                alt={details?.title || template.title}
-                                                className="h-16 w-12 shrink-0 rounded-lg border object-cover sm:h-20 sm:w-14"
-                                            />
+                                            {details?.image ? (
+                                                <img
+                                                    src={details.image}
+                                                    alt={details.title || template.title}
+                                                    className="h-16 w-12 shrink-0 rounded-lg border object-cover sm:h-20 sm:w-14"
+                                                />
+                                            ) : (
+                                                <div aria-label="មិនទាន់បញ្ចូលរូប Cover" className="flex h-16 w-12 shrink-0 items-center justify-center rounded-lg border bg-muted text-muted-foreground sm:h-20 sm:w-14">
+                                                    <LayoutGrid className="h-5 w-5" aria-hidden="true" />
+                                                </div>
+                                            )}
                                             <div className="min-w-0 flex-1">
                                                 <p className="break-words font-bold leading-snug text-foreground">{details?.title || template.title}</p>
                                                 <p className="mt-1 break-words text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
@@ -157,7 +173,7 @@ export default function TemplateAvailabilityPage() {
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="flex w-full shrink-0 items-center justify-between gap-3 border-t pt-3 sm:w-auto sm:justify-end sm:border-0 sm:pt-0">
+                                        <div className="flex w-full shrink-0 items-center justify-between gap-2 border-t pt-3 sm:w-auto sm:justify-end sm:border-0 sm:pt-0">
                                             <div className="flex items-center gap-2">
                                                 {busy && <Loader2 aria-label="កំពុងរក្សាទុក" className="h-4 w-4 animate-spin text-muted-foreground" />}
                                                 <Switch
@@ -167,6 +183,12 @@ export default function TemplateAvailabilityPage() {
                                                     aria-label={`${enabled ? "បិទ" : "បើក"} ${details?.title || template.title}`}
                                                 />
                                             </div>
+                                            <Button asChild type="button" variant="outline" size="sm" className="h-9 px-3">
+                                                <Link to={`/dashboard/design?templatePreview=${encodeURIComponent(template.id)}`}>
+                                                    <Eye className="h-3.5 w-3.5 sm:mr-2" />
+                                                    <span className="hidden sm:inline">កែ Demo</span>
+                                                </Link>
+                                            </Button>
                                             {!isEditing && (
                                                 <Button
                                                     type="button"
@@ -224,7 +246,7 @@ export default function TemplateAvailabilityPage() {
                                                 <ImageUploadWidget
                                                     value={draft.image}
                                                     onChange={(image) => setDraft({ ...draft, image })}
-                                                    onRemove={() => setDraft({ ...draft, image: template.image })}
+                                                    onRemove={() => setDraft({ ...draft, image: "" })}
                                                     folder="template-covers"
                                                     compact
                                                     label="បញ្ចូលរូប Cover"
@@ -234,7 +256,13 @@ export default function TemplateAvailabilityPage() {
                                                 <div className="rounded-xl border bg-muted/30 p-3">
                                                     <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Preview</p>
                                                     <div className="flex gap-3">
-                                                        {draft.image && <img src={draft.image} alt="" className="h-20 w-14 rounded-lg object-cover" />}
+                                                        {draft.image ? (
+                                                            <img src={draft.image} alt="" className="h-20 w-14 rounded-lg object-cover" />
+                                                        ) : (
+                                                            <div className="flex h-20 w-14 items-center justify-center rounded-lg border bg-muted text-[10px] text-muted-foreground">
+                                                                មិនទាន់មានរូប
+                                                            </div>
+                                                        )}
                                                         <div className="min-w-0">
                                                             <p className="font-bold">{draft.title || "ឈ្មោះ Template"}</p>
                                                             <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{draft.description || "ពិពណ៌នា Template"}</p>
@@ -246,7 +274,7 @@ export default function TemplateAvailabilityPage() {
                                                 <Button type="button" variant="outline" disabled={savingMetadata} onClick={cancelEditing}>
                                                     <X className="mr-2 h-4 w-4" /> បោះបង់
                                                 </Button>
-                                                <Button type="button" disabled={savingMetadata || !draft.title.trim() || !draft.image} onClick={() => void saveMetadata()}>
+                                                <Button type="button" disabled={savingMetadata || !draft.title.trim()} onClick={() => void saveMetadata()}>
                                                     {savingMetadata ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                                     រក្សាទុក
                                                 </Button>

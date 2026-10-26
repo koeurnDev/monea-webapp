@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, Mail, Loader2, Fingerprint, ShieldAlert, Save, Globe, ArrowRight, Clock } from "lucide-react";
+import { User, Mail, Loader2, Fingerprint, ShieldAlert, Save, Globe, ArrowRight, Clock, LockKeyhole, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROLES, ROLE_LABELS } from "@/lib/constants";
+import { TEMPLATE_CATALOG } from "@/components/templates/template-config";
 
 interface UserDetailsDialogProps {
     selectedUserId: string | null;
@@ -19,6 +20,10 @@ interface UserDetailsDialogProps {
     handleRestoreUser: () => void;
     setShowDeleteDialog: (val: boolean) => void;
     deletingUser: boolean;
+    onUnlockTemplate: (weddingId: string, templateId: string) => Promise<void>;
+    onGrantUserTemplate: (templateId: string) => Promise<void>;
+    onRevokeUserTemplate: (templateId: string) => Promise<void>;
+    unlockingTemplateKey: string | null;
 }
 
 export function UserDetailsDialog({
@@ -32,8 +37,24 @@ export function UserDetailsDialog({
     savingRole,
     handleRestoreUser,
     setShowDeleteDialog,
-    deletingUser
+    deletingUser,
+    onUnlockTemplate,
+    onGrantUserTemplate,
+    onRevokeUserTemplate,
+    unlockingTemplateKey,
 }: UserDetailsDialogProps) {
+    const [selectedTemplateByWedding, setSelectedTemplateByWedding] = useState<Record<string, string>>({});
+    const [selectedAccountTemplate, setSelectedAccountTemplate] = useState("");
+    const getTemplateOptions = (wedding: any) =>
+        TEMPLATE_CATALOG.filter((template) => template.eventType === "both" || template.eventType === wedding.eventType);
+    const getSelectedTemplate = (wedding: any) => {
+        const options = getTemplateOptions(wedding);
+        return selectedTemplateByWedding[wedding.id]
+            ?? options.find((template) => template.id === wedding.templateId)?.id
+            ?? options[0]?.id
+            ?? "";
+    };
+
     return (
         <Dialog open={!!selectedUserId} onOpenChange={(open) => !open && setSelectedUserId(null)}>
             <DialogContent className="max-w-[850px] p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-2xl max-h-[90vh] flex flex-col">
@@ -145,26 +166,166 @@ export function UserDetailsDialog({
                                         <Globe size={16} className="text-blue-500" />
                                         Linked Weddings
                                     </h3>
+                                    <div className="space-y-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-900/50 dark:bg-violet-950/20">
+                                        <div>
+                                            <p className="text-sm font-bold text-foreground">សិទ្ធិ Template VIP តាម User</p>
+                                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                                បើក Template មួយឲ្យ account នេះប្រើបានលើ wedding ទាំងអស់ រួមទាំង wedding ថ្មី។
+                                            </p>
+                                        </div>
+                                        {selectedUserDetails.templateAccess?.length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                                {selectedUserDetails.templateAccess.map((access: any) => {
+                                                    const key = `user:${access.templateId}`;
+                                                    return (
+                                                        <div key={access.id} className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-background px-3 py-2">
+                                                            <span className="text-xs font-bold">
+                                                                {TEMPLATE_CATALOG.find((template) => template.id === access.templateId)?.title || access.templateId}
+                                                            </span>
+                                                            <Badge variant="outline" className="border-emerald-300 text-emerald-700">VIP</Badge>
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                disabled={unlockingTemplateKey === key}
+                                                                onClick={() => void onRevokeUserTemplate(access.templateId)}
+                                                                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                                                            >
+                                                                {unlockingTemplateKey === key ? <Loader2 size={13} className="animate-spin" /> : "បិទ"}
+                                                            </Button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                        <div className="flex flex-col gap-2 sm:flex-row">
+                                            <Select
+                                                value={selectedAccountTemplate || TEMPLATE_CATALOG[0]?.id}
+                                                onValueChange={setSelectedAccountTemplate}
+                                            >
+                                                <SelectTrigger className="h-10 text-xs">
+                                                    <SelectValue placeholder="ជ្រើសរើស Template ID" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {TEMPLATE_CATALOG.map((template) => (
+                                                        <SelectItem key={template.id} value={template.id}>
+                                                            {template.title} · {template.id}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {(() => {
+                                                const templateId = selectedAccountTemplate || TEMPLATE_CATALOG[0]?.id || "";
+                                                const hasAccess = selectedUserDetails.templateAccess?.some((access: any) => access.templateId === templateId);
+                                                const key = `user:${templateId}`;
+                                                return (
+                                                    <Button
+                                                        type="button"
+                                                        disabled={!templateId || hasAccess || unlockingTemplateKey === key}
+                                                        onClick={() => void onGrantUserTemplate(templateId)}
+                                                        className="h-10 shrink-0 gap-2 text-xs font-bold"
+                                                    >
+                                                        {unlockingTemplateKey === key
+                                                            ? <Loader2 size={14} className="animate-spin" />
+                                                            : <Unlock size={14} />}
+                                                        {hasAccess ? "បានបើករួច" : "បើកឲ្យ User"}
+                                                    </Button>
+                                                );
+                                            })()}
+                                        </div>
+                                    </div>
                                     <div className="grid grid-cols-1 gap-3">
                                         {selectedUserDetails.weddings && selectedUserDetails.weddings.length > 0 ? (
                                             selectedUserDetails.weddings.map((w: any) => (
                                                 <div 
                                                     key={w.id} 
-                                                    className="p-5 rounded-2xl border border-border flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
+                                                    className="p-5 rounded-2xl border border-border hover:bg-slate-50 transition-colors group cursor-pointer"
                                                     onClick={() => window.location.href = `/admin/weddings/${w.id}`}
                                                 >
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 rounded-xl bg-white border border-border flex items-center justify-center text-blue-500 shadow-sm group-hover:bg-blue-500 group-hover:text-white transition-all">
-                                                            <Globe size={16} strokeWidth={2.5} />
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <div className="flex items-center gap-4 min-w-0">
+                                                            <div className="w-10 h-10 rounded-xl bg-white border border-border flex items-center justify-center text-blue-500 shadow-sm group-hover:bg-blue-500 group-hover:text-white transition-all shrink-0">
+                                                                <Globe size={16} strokeWidth={2.5} />
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-sm font-black text-foreground font-kantumruy truncate">
+                                                                    {w.groomName} & {w.brideName}
+                                                                </span>
+                                                                <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">{w.weddingCode || w.id.substring(0, 8)}</span>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-sm font-black text-foreground font-kantumruy">
-                                                                {w.groomName} & {w.brideName}
-                                                            </span>
-                                                            <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">{w.weddingCode || w.id.substring(0, 8)}</span>
+                                                        <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all shrink-0" />
+                                                    </div>
+                                                    <div
+                                                        className="mt-4 pt-4 border-t border-border space-y-3 cursor-default"
+                                                        onClick={(event) => event.stopPropagation()}
+                                                    >
+                                                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                                                            <span className="font-bold text-muted-foreground">Template កំពុងប្រើ:</span>
+                                                            <Badge variant="outline" className="font-mono">
+                                                                {TEMPLATE_CATALOG.find((template) => template.id === w.templateId)?.title || w.templateId || "មិនទាន់ជ្រើសរើស"}
+                                                            </Badge>
+                                                        </div>
+                                                        {w.templateLicenses?.length > 0 && (
+                                                            <div className="space-y-1">
+                                                                <p className="text-xs font-bold text-muted-foreground">Template licenses:</p>
+                                                                {w.templateLicenses.map((license: any) => (
+                                                                    <div key={license.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                                                        <span className="font-mono">{TEMPLATE_CATALOG.find((template) => template.id === license.templateId)?.title || license.templateId}</span>
+                                                                        <span className="flex items-center gap-2">
+                                                                            <span className="text-muted-foreground">{license.amount} {license.currency}</span>
+                                                                            <Badge variant="outline" className={license.status === "ACTIVE" ? "text-emerald-600 border-emerald-200" : "text-amber-600 border-amber-200"}>
+                                                                                {license.status}
+                                                                            </Badge>
+                                                                        </span>
+                                                                        {(license.paymentOrderId || license.bakongTrxId) && (
+                                                                            <span className="basis-full text-[10px] text-muted-foreground break-all">
+                                                                                Ref: {license.bakongTrxId || license.paymentOrderId}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-1">
+                                                            <Select
+                                                                value={getSelectedTemplate(w)}
+                                                                onValueChange={(templateId) => setSelectedTemplateByWedding((current) => ({ ...current, [w.id]: templateId }))}
+                                                            >
+                                                                <SelectTrigger className="h-9 sm:max-w-xs text-xs" aria-label="Select template to unlock">
+                                                                    <SelectValue placeholder="ជ្រើសរើស Template" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {getTemplateOptions(w).map((template) => (
+                                                                            <SelectItem key={template.id} value={template.id}>{template.title}</SelectItem>
+                                                                        ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            {(() => {
+                                                                const templateId = getSelectedTemplate(w);
+                                                                const license = w.templateLicenses?.find((item: any) => item.templateId === templateId);
+                                                                const key = `${w.id}:${templateId}`;
+                                                                const isActive = license?.status === "ACTIVE";
+                                                                return (
+                                                                    <Button
+                                                                        type="button"
+                                                                        size="sm"
+                                                                        variant={isActive ? "outline" : "default"}
+                                                                        className="h-9 text-xs font-bold"
+                                                                        disabled={!templateId || isActive || unlockingTemplateKey === key}
+                                                                        onClick={() => templateId && void onUnlockTemplate(w.id, templateId)}
+                                                                    >
+                                                                        {unlockingTemplateKey === key
+                                                                            ? <Loader2 size={14} className="mr-2 animate-spin" />
+                                                                            : isActive
+                                                                                ? <LockKeyhole size={14} className="mr-2" />
+                                                                                : <Unlock size={14} className="mr-2" />}
+                                                                        {isActive ? "បានដោះសោរួច" : "បានទទួលប្រាក់ — ដោះសោ"}
+                                                                    </Button>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     </div>
-                                                    <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                                                 </div>
                                             ))
                                         ) : (

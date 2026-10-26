@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import React, { useCallback, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { 
     Mail, 
     Lock, 
@@ -14,7 +14,6 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useSWRConfig } from "swr";
 import { Button } from "@/components/ui/button";
 import {
     Form,
@@ -36,10 +35,13 @@ import SSOIcons from "@/components/auth/SSOIcons";
 import { motion as m, AnimatePresence } from 'framer-motion';
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
+import type { AuthUser } from "@/types/auth";
+import { getPostLoginPath } from "@/lib/auth-navigation";
 
 export default function SignInPage() {
-    const { user, isLoading: authLoading } = useAuth();
-    const { mutate } = useSWRConfig();
+    const { user, isLoading: authLoading, refetch, setAuthenticatedUser } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
     const { t, locale } = useTranslation();
     const isKm = locale === 'km';
     const [searchParams] = useSearchParams();
@@ -47,15 +49,9 @@ export default function SignInPage() {
     // Auto redirect if already authenticated
     useEffect(() => {
         if (!authLoading && user) {
-            if (user.role === ROLES.EVENT_STAFF) {
-                window.location.href = "/staff";
-            } else if (user.role === ROLES.PLATFORM_OWNER || user.role === 'ADMIN' || user.role === 'SUPERADMIN') {
-                window.location.href = "/admin";
-            } else {
-                window.location.href = AUTH_URLS.DASHBOARD;
-            }
+            navigate(getPostLoginPath(user.role === ROLES.PLATFORM_OWNER, location.state?.from, window.location.origin), { replace: true });
         }
-    }, [user, authLoading]);
+    }, [user, authLoading, location.state, navigate]);
 
     const [error, setError] = useState("");
     const [canRestoreAccount, setCanRestoreAccount] = useState(false);
@@ -68,6 +64,14 @@ export default function SignInPage() {
     const [captchaState, setCaptchaState] = useState<"loading" | "ready" | "error" | "expired">("ready");
     const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
     const [twoFactorToken, setTwoFactorToken] = useState("");
+    const [ownerMfaSetup, setOwnerMfaSetup] = useState<{
+        qrCodeDataUrl: string;
+        secret: string;
+        recoveryCodes: string[];
+    } | null>(null);
+    const ownerMfaSetupAttemptedRef = useRef(false);
+    const [ownerMfaToken, setOwnerMfaToken] = useState("");
+    const [useRecoveryCode, setUseRecoveryCode] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [show2FA, setShow2FA] = useState(false);
     const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
@@ -75,11 +79,66 @@ export default function SignInPage() {
     const registered = searchParams.get('registered');
     const authError = searchParams.get('error');
 
+    const loadOwnerMfaSetup = useCallback(async () => {
+        if (ownerMfaSetupAttemptedRef.current) return;
+        ownerMfaSetupAttemptedRef.current = true;
+        console.log('[SignIn] loadOwnerMfaSetup called');
+        setError("");
+        try {
+            const response = await moneaClient.post<{
+                qrCodeDataUrl: string;
+                secret: string;
+                recoveryCodes: string[];
+            }>("/api/auth/2fa/setup", {});
+            console.log('[SignIn] 2FA setup response:', { 
+                error: response.error, 
+                status: response.status,
+                hasData: !!response.data 
+            });
+            if (response.error || !response.data?.qrCodeDataUrl || !response.data.secret ||
+                !Array.isArray(response.data.recoveryCodes)) {
+                setError(response.error || (isKm
+                    ? "មិនអាចចាប់ផ្ដើមការកំណត់ 2FA បានទេ។ សូមចូលម្ដងទៀត។"
+                    : "Could not start 2FA setup. Please sign in again."));
+                return;
+            }
+            console.log('[SignIn] 2FA setup data received successfully');
+            setOwnerMfaSetup(response.data);
+            setOwnerMfaToken("");
+            setShow2FA(false);
+            setShowCaptcha(false);
+        } catch (err) {
+            console.error('[SignIn] loadOwnerMfaSetup error:', err);
+            setError(isKm
+                ? "មិនអាចចាប់ផ្ដើមការកំណត់ 2FA បានទេ។ សូមចូលម្ដងទៀត។"
+                : "Could not start 2FA setup. Please sign in again.");
+        }
+    }, [isKm]);
+
     useEffect(() => {
         if (authError === "network_error") {
             setError(t("common.errors.network"));
+        } else if (authError === "owner_mfa_setup_required") {
+            void loadOwnerMfaSetup();
+        } else if (authError === "two_factor_required") {
+            setError(isKm
+                ? "គណនីនេះបានបើក 2FA។ សូមចូលដោយអ៊ីមែល ពាក្យសម្ងាត់ និងលេខកូដ Authenticator។"
+                : "Two-factor authentication is enabled for this account. Sign in with your email, password, and authenticator code.");
         }
-    }, [authError, t]);
+    }, [authError, isKm, loadOwnerMfaSetup, t]);
+
+    // Listen for 2FA setup event from useAuth (when /api/auth/me returns 428)
+    useEffect(() => {
+        const handle2FASetupRequired = () => {
+            console.log('[SignIn] Received monea:2fa-setup-required event');
+            void loadOwnerMfaSetup();
+        };
+
+        window.addEventListener('monea:2fa-setup-required', handle2FASetupRequired);
+        return () => {
+            window.removeEventListener('monea:2fa-setup-required', handle2FASetupRequired);
+        };
+    }, [loadOwnerMfaSetup]);
 
     function retryCaptcha() {
         setCaptchaToken("");
@@ -98,6 +157,11 @@ export default function SignInPage() {
     });
 
     async function onSubmit(values: z.infer<typeof loginSchema>) {
+        if (ownerMfaSetup) {
+            await verifyOwnerMfaSetup();
+            return;
+        }
+
         if (showCaptcha && turnstileSiteKey && !captchaToken) {
             return;
         }
@@ -114,27 +178,53 @@ export default function SignInPage() {
                 turnstileToken: turnstileToken || undefined,
                 twoFactorToken: show2FA ? twoFactorToken : undefined
             };
-            const res = await moneaClient.post<{ user?: any; require2FA?: boolean; requireCaptcha?: boolean }>("/api/auth/signin", body);
+            const res = await moneaClient.post<{
+                user?: { id: string; email: string; role: string };
+                token?: string;  // ← Token in response body
+                require2FA?: boolean;
+                requireOwnerMfaSetup?: boolean;
+                requireCaptcha?: boolean;
+            }>("/api/auth/signin", body);
             const data = res.data;
 
-            if (!res.error && data) {
-                await mutate("/api/auth/me");
-                mutate(() => true, undefined, { revalidate: true });
+            if (!res.error && data?.user?.id && data.user.email && data.user.role) {
+                // ✅ Token received - store in sessionStorage as fallback
+                if (data.token) {
+                    try {
+                        sessionStorage.setItem('auth_token', data.token);
+                        console.log('[SignIn] Token stored in sessionStorage');
+                    } catch (e) {
+                        console.warn('[SignIn] Could not store token in sessionStorage:', e);
+                    }
+                }
                 
-                if (data.user?.role === ROLES.EVENT_STAFF) {
-                    window.location.href = "/staff";
-                    return;
-                }
-                if (data.user?.role === ROLES.PLATFORM_OWNER) {
-                    window.location.href = "/admin";
-                    return;
-                }
-                window.location.href = AUTH_URLS.DASHBOARD;
+                const signedInUser: AuthUser = {
+                    id: data.user.id,
+                    userId: data.user.id,
+                    email: data.user.email,
+                    name: null,
+                    role: data.user.role,
+                    type: data.user.role === ROLES.EVENT_STAFF
+                        ? "staff"
+                        : data.user.role === ROLES.PLATFORM_OWNER
+                            ? "admin"
+                            : "user",
+                };
+                setAuthenticatedUser(signedInUser);
+                void refetch({ silent: true });
+                navigate(getPostLoginPath(signedInUser.role === ROLES.PLATFORM_OWNER, location.state?.from, window.location.origin), { replace: true });
                 return;
             }
 
             if (data?.require2FA) {
+                setTwoFactorToken("");
+                setUseRecoveryCode(false);
                 setShow2FA(true);
+                return;
+            }
+
+            if (data?.requireOwnerMfaSetup) {
+                await loadOwnerMfaSetup();
                 return;
             }
 
@@ -151,6 +241,10 @@ export default function SignInPage() {
                 if (res.code === "EMAIL_VERIFICATION_REQUIRED") {
                     setVerificationEmail(values.email.trim().toLowerCase());
                 }
+            } else if (!data?.user) {
+                setError(isKm
+                    ? "ការចូលគណនីមិនបានបញ្ចប់ទេ។ សូមព្យាយាមម្ដងទៀត។"
+                    : "Sign-in could not be completed. Please try again.");
             }
         } catch (e: any) {
             console.error("[SignIn] Request failed:", e);
@@ -158,6 +252,63 @@ export default function SignInPage() {
         } finally {
             setIsLoading(false);
             if (turnstileSiteKey && showCaptcha) retryCaptcha();
+        }
+    }
+
+    function handleFormSubmit(event: React.FormEvent<HTMLFormElement>) {
+        if (ownerMfaSetup) {
+            event.preventDefault();
+            void verifyOwnerMfaSetup();
+            return;
+        }
+        void form.handleSubmit(onSubmit)(event);
+    }
+
+    async function verifyOwnerMfaSetup() {
+        if (ownerMfaToken.length !== 6 || isLoading) return;
+
+        console.log('[SignIn] verifyOwnerMfaSetup called with token:', ownerMfaToken);
+        setError("");
+        setIsLoading(true);
+        try {
+            const response = await moneaClient.post<{
+                success: boolean;
+                user?: { id: string; email: string; role: string };
+            }>("/api/auth/2fa/verify", { token: ownerMfaToken });
+            console.log('[SignIn] 2FA verify response:', {
+                error: response.error,
+                status: response.status,
+                success: response.data?.success,
+                hasUser: !!response.data?.user
+            });
+            const signedInUser = response.data?.user;
+            if (response.error || !response.data?.success || !signedInUser?.id ||
+                !signedInUser.email || !signedInUser.role) {
+                console.error('[SignIn] 2FA verify failed:', response.error);
+                setError(response.error || (isKm
+                    ? "លេខកូដមិនត្រឹមត្រូវ។ សូមពិនិត្យ Authenticator ហើយសាកល្បងម្ដងទៀត។"
+                    : "The code is invalid. Check your authenticator and try again."));
+                return;
+            }
+
+            const authenticatedUser: AuthUser = {
+                id: signedInUser.id,
+                userId: signedInUser.id,
+                email: signedInUser.email,
+                name: null,
+                role: signedInUser.role,
+                type: signedInUser.role === ROLES.PLATFORM_OWNER ? "admin" : "user",
+            };
+            setAuthenticatedUser(authenticatedUser);
+            void refetch({ silent: true });
+            navigate(getPostLoginPath(true, location.state?.from, window.location.origin), { replace: true });
+        } catch (verificationError) {
+            console.error("[SignIn] Owner MFA setup verification failed:", verificationError);
+            setError(isKm
+                ? "មិនអាចផ្ទៀងផ្ទាត់លេខកូដបានទេ។ សូមព្យាយាមម្ដងទៀត។"
+                : "Could not verify the code. Please try again.");
+        } finally {
+            setIsLoading(false);
         }
     }
 
@@ -202,7 +353,7 @@ export default function SignInPage() {
             <div className="w-full max-w-[420px] flex items-center justify-between mb-3 px-1">
                 <Link
                     to="/"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-primary bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-xs transition-all hover:bg-primary/90 active:scale-95"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary shadow-xs transition-all hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-95"
                 >
                     <ChevronLeft size={15} />
                     <span>{isKm ? "ទំព័រដើម" : "Home"}</span>
@@ -248,9 +399,62 @@ export default function SignInPage() {
 
                     {/* Email / Password Form */}
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+                        <form onSubmit={handleFormSubmit} className="space-y-3">
                             <AnimatePresence mode="wait">
-                                {!show2FA ? (
+                                {ownerMfaSetup ? (
+                                    <m.div
+                                        key="owner-mfa-setup"
+                                        initial={{ opacity: 0, x: 15 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -15 }}
+                                        className="space-y-3 py-1"
+                                    >
+                                        <div className="space-y-1 text-center">
+                                            <h3 className="text-foreground font-bold text-sm font-kantumruy">
+                                                {isKm ? "កំណត់ 2FA សម្រាប់ Platform Owner" : "Set up Platform Owner 2FA"}
+                                            </h3>
+                                            <p className="text-xs text-muted-foreground">
+                                                {isKm
+                                                    ? "ស្កេន QR code ដោយប្រើកម្មវិធី Authenticator រួចបញ្ចូលលេខកូដ ៦ ខ្ទង់។"
+                                                    : "Scan the QR code with an authenticator app, then enter its six-digit code."}
+                                            </p>
+                                        </div>
+                                        <img
+                                            src={ownerMfaSetup.qrCodeDataUrl}
+                                            alt={isKm ? "កូដ QR សម្រាប់ 2FA" : "2FA setup QR code"}
+                                            className="mx-auto h-48 w-48 rounded-xl border bg-white p-2"
+                                        />
+                                        <div className="rounded-lg bg-muted p-2 text-center">
+                                            <p className="mb-1 text-xs text-muted-foreground">
+                                                {isKm ? "ឬបញ្ចូលកូនសោដោយដៃ" : "Or enter this setup key manually"}
+                                            </p>
+                                            <code className="select-all break-all text-sm font-bold">{ownerMfaSetup.secret}</code>
+                                        </div>
+                                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5">
+                                            <p className="mb-1 text-xs font-bold text-amber-800 dark:text-amber-200">
+                                                {isKm
+                                                    ? "រក្សាទុក Recovery Codes នៅកន្លែងមានសុវត្ថិភាព"
+                                                    : "Save these recovery codes somewhere safe"}
+                                            </p>
+                                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-xs">
+                                                {ownerMfaSetup.recoveryCodes.map((code) => (
+                                                    <code key={code}>{code}</code>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <Input
+                                            value={ownerMfaToken}
+                                            onChange={(event) => setOwnerMfaToken(
+                                                khmerToEnglishNumbers(event.target.value).replace(/[^0-9]/g, "").slice(0, 6)
+                                            )}
+                                            placeholder="000000"
+                                            autoComplete="one-time-code"
+                                            className="h-11 text-center font-mono text-lg font-bold tracking-[0.3em]"
+                                            maxLength={6}
+                                            inputMode="numeric"
+                                        />
+                                    </m.div>
+                                ) : !show2FA ? (
                                     <m.div
                                         key="password-step"
                                         initial={{ opacity: 0 }}
@@ -345,21 +549,40 @@ export default function SignInPage() {
                                                 <Input
                                                     value={twoFactorToken}
                                                     onChange={(e) => {
-                                                        const val = khmerToEnglishNumbers(e.target.value).replace(/[^0-9]/g, "");
+                                                        const input = khmerToEnglishNumbers(e.target.value);
+                                                        const val = useRecoveryCode
+                                                            ? input.toUpperCase().replace(/[^A-F0-9]/g, "").slice(0, 10)
+                                                            : input.replace(/[^0-9]/g, "").slice(0, 6);
                                                         setTwoFactorToken(val);
                                                     }}
-                                                    placeholder="000000"
+                                                    placeholder={useRecoveryCode ? "A1B2C3D4E5" : "000000"}
                                                     autoComplete="one-time-code"
                                                     className="pl-11 text-center text-lg font-bold tracking-[0.3em] bg-background border border-input text-foreground rounded-xl focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 h-11 font-mono"
-                                                    maxLength={6}
+                                                    maxLength={useRecoveryCode ? 10 : 6}
                                                     autoFocus
-                                                    inputMode="numeric"
+                                                    inputMode={useRecoveryCode ? "text" : "numeric"}
                                                 />
                                             </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setTwoFactorToken("");
+                                                    setUseRecoveryCode((enabled) => !enabled);
+                                                }}
+                                                className="w-full text-xs font-bold text-primary hover:underline"
+                                            >
+                                                {useRecoveryCode
+                                                    ? (isKm ? "ប្រើលេខកូដ Authenticator" : "Use authenticator code")
+                                                    : (isKm ? "ប្រើ Recovery Code" : "Use a recovery code")}
+                                            </button>
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => setShow2FA(false)}
+                                                onClick={() => {
+                                                    setShow2FA(false);
+                                                    setTwoFactorToken("");
+                                                    setUseRecoveryCode(false);
+                                                }}
                                                 className="w-full text-muted-foreground hover:text-foreground text-xs h-8 active:scale-95 transition-transform font-kantumruy"
                                             >
                                                 {isKm ? "← ត្រឡប់ទៅវាយពាក្យសម្ងាត់" : "← Back to password"}
@@ -469,45 +692,57 @@ export default function SignInPage() {
                             {/* Primary Submit Button */}
                             <Button 
                                 type="submit" 
-                                disabled={isLoading || (showCaptcha && (!turnstileSiteKey || !captchaToken))}
-                                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-11 rounded-xl shadow-md transition-all text-sm font-kantumruy mt-1"
+                                disabled={isLoading || (showCaptcha && (!turnstileSiteKey || !captchaToken)) ||
+                                    (ownerMfaSetup !== null && ownerMfaToken.length !== 6) ||
+                                    (show2FA && twoFactorToken.length !== (useRecoveryCode ? 10 : 6))}
+                                className="w-full min-h-12 h-auto whitespace-normal px-4 py-3 border border-primary bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 font-bold rounded-xl shadow-lg shadow-primary/15 transition-all text-sm font-kantumruy mt-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
                             >
                                 {isLoading ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
-                                    <span>{isKm ? "ចូលគណនី" : "Sign In"}</span>
+                                    <span className="text-center leading-snug">
+                                        {ownerMfaSetup
+                                            ? (isKm ? "បើក 2FA និងបន្ត" : "Enable 2FA and continue")
+                                            : (isKm ? "ចូលគណនី" : "Sign In")}
+                                    </span>
                                 )}
                             </Button>
                         </form>
                     </Form>
 
                     {/* Divider */}
-                    <div className="relative my-3.5 flex items-center justify-center">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-border/60" />
-                        </div>
-                        <span className="relative bg-card px-2.5 text-xs text-muted-foreground font-kantumruy">
-                            {isKm ? "ឬ" : "or"}
-                        </span>
-                    </div>
+                    {!ownerMfaSetup && (
+                        <>
+                            <div className="relative my-3.5 flex items-center justify-center">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-border/60" />
+                                </div>
+                                <span className="relative bg-card px-2.5 text-xs text-muted-foreground font-kantumruy">
+                                    {isKm ? "ឬ" : "or"}
+                                </span>
+                            </div>
 
-                    {/* Social Logins */}
-                    <div className="w-full">
-                        <SSOIcons />
-                    </div>
+                            {/* Social Logins */}
+                            <div className="w-full">
+                                <SSOIcons />
+                            </div>
+                        </>
+                    )}
 
                     {/* Footer Switch Link */}
-                    <div className="mt-3.5 border-t border-border/60 pt-3 text-center">
-                        <p className="text-xs text-muted-foreground font-kantumruy">
-                            {isKm ? "មិនទាន់មានគណនីទេ?" : "Need an account?"}{" "}
-                            <Link 
-                                to={AUTH_URLS.SIGN_UP} 
-                                className="ml-1 font-bold text-primary hover:underline"
-                            >
-                                {isKm ? "ចុះឈ្មោះ" : "Create one"}
-                            </Link>
-                        </p>
-                    </div>
+                    {!ownerMfaSetup && (
+                        <div className="mt-3.5 border-t border-border/60 pt-3 text-center">
+                            <p className="text-xs text-muted-foreground font-kantumruy">
+                                {isKm ? "មិនទាន់មានគណនីទេ?" : "Need an account?"}{" "}
+                                <Link
+                                    to={AUTH_URLS.SIGN_UP}
+                                    className="ml-1 font-bold text-primary hover:underline"
+                                >
+                                    {isKm ? "ចុះឈ្មោះ" : "Create one"}
+                                </Link>
+                            </p>
+                        </div>
+                    )}
                 </div>
             </m.div>
         </div>

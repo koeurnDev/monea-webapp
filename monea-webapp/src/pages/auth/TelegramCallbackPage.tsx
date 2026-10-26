@@ -31,12 +31,20 @@ export default function TelegramCallbackPage() {
                 const response = await moneaClient.post<{
                     code?: string;
                     linked?: boolean;
+                    ownerMfaSetupRequired?: boolean;
                 }>("/api/auth/sso/telegram/callback", { code, state, verifier });
                 if (response.error || !response.data) {
+                    if (response.code === "TWO_FACTOR_REQUIRED") {
+                        throw new Error(response.code);
+                    }
                     throw new Error(response.error || "Telegram sign-in failed");
                 }
 
                 sessionStorage.removeItem(VERIFIER_STORAGE_KEY);
+                if (response.data.ownerMfaSetupRequired) {
+                    navigate("/sign-in?error=owner_mfa_setup_required", { replace: true });
+                    return;
+                }
                 if (response.data.linked) {
                     navigate("/dashboard/account?telegramLinked=1", { replace: true });
                     return;
@@ -49,7 +57,9 @@ export default function TelegramCallbackPage() {
             } catch (callbackError) {
                 console.error("[Telegram OIDC Callback] Failed to finish:", callbackError);
                 sessionStorage.removeItem(VERIFIER_STORAGE_KEY);
-                setError("មិនអាចបញ្ចប់ការចូលតាម Telegram បានទេ។ សូមសាកល្បងម្ដងទៀត។");
+                setError(callbackError instanceof Error && callbackError.message === "TWO_FACTOR_REQUIRED"
+                    ? "គណនីនេះបានបើក 2FA។ សូមចូលដោយអ៊ីមែល ពាក្យសម្ងាត់ និងលេខកូដ Authenticator។"
+                    : "មិនអាចបញ្ចប់ការចូលតាម Telegram បានទេ។ សូមសាកល្បងម្ដងទៀត។");
             }
         };
 

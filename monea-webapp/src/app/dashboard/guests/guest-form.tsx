@@ -120,7 +120,7 @@ export function GuestForm({
                         title: "Action Limit Reached",
                         description: "You've hit the action limit. Upgrade to Pro for unlimited access.",
                         type: "error",
-                        action: { label: "Upgrade to Pro", onClick: () => window.location.href = "/dashboard/upgrade" }
+                        action: { label: "Upgrade to Pro", onClick: () => window.location.href = "/dashboard" }
                     });
                 } else {
                     showToast({

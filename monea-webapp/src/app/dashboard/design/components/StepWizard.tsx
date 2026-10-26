@@ -73,6 +73,12 @@ export const StepWizard = ({ children, currentStep, weddingId, onSave, loading, 
         }
     };
 
+    const handleBack = () => {
+        if (!savingNext && setStep) {
+            setStep(Math.max(1, currentStep - 1));
+        }
+    };
+
     return (
         <div className="flex h-full w-full bg-background overflow-hidden z-20">
             {/* Left Vertical Sub-Navigation Rail (Desktop Only) */}
@@ -148,16 +154,16 @@ export const StepWizard = ({ children, currentStep, weddingId, onSave, loading, 
                 </div>
 
                 {/* Mobile Step Header Banner (cleaner, less noisy) */}
-                <div className="sticky top-0 z-20 flex flex-none items-center justify-between border-b border-border bg-card px-3 py-2.5 shadow-sm md:hidden">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                        <div className="flex h-8 w-8 flex-none items-center justify-center rounded-xl border border-primary/20 bg-accent text-primary">
-                            <CurrentIcon className="h-4 w-4" />
+                <div className="sticky top-0 z-20 flex h-10 flex-none items-center justify-between border-b border-border bg-card px-2.5 shadow-sm md:hidden">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <div className="flex h-7 w-7 flex-none items-center justify-center rounded-lg border border-primary/20 bg-accent text-primary">
+                            <CurrentIcon className="h-3.5 w-3.5" />
                         </div>
                         <div className="min-w-0">
-                            <h2 className="truncate text-sm font-black leading-tight text-foreground font-kantumruy">
+                            <h2 className="truncate text-xs font-black leading-tight text-foreground font-kantumruy">
                                 {mobileStepTitles[currentStep - 1] || currentStepObj.title}
                             </h2>
-                            <p className="text-xs font-medium text-muted-foreground">
+                            <p className="text-[10px] font-medium leading-tight text-muted-foreground">
                                 {currentStep}/{STEPS.length}
                             </p>
                         </div>
@@ -166,79 +172,78 @@ export const StepWizard = ({ children, currentStep, weddingId, onSave, loading, 
                     <div className="flex items-center gap-1.5">
                         <span
                             className={clsx(
-                                "flex h-7 w-7 items-center justify-center rounded-full",
+                                "flex h-6 w-6 items-center justify-center rounded-full",
                                 loading || isDirty ? "bg-amber-500/10 text-amber-400" : "bg-emerald-500/10 text-emerald-400"
                             )}
                             title={saveState.label}
                         >
                             {loading ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                <Loader2 className="h-3 w-3 animate-spin" />
                             ) : isDirty ? (
                                 <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
                             ) : (
-                                <Check className="h-3.5 w-3.5" />
+                                <Check className="h-3 w-3" />
                             )}
                         </span>
                     </div>
                 </div>
 
                 {/* Main Content with visible subtle scrollbar */}
-                <div className="min-h-0 flex-1 overflow-y-auto p-2.5 sm:p-5 md:p-6 bg-muted/20 relative overscroll-contain [scrollbar-width:thin] [scrollbar-color:rgba(156,163,175,0.4)_transparent]">
-                    <div className="tour-step-content w-full max-w-[420px] mx-auto pb-[calc(env(safe-area-inset-bottom)+7rem)] sm:pb-8 space-y-3 sm:space-y-5">
+                <div className="min-h-0 flex-1 overflow-y-auto p-2 sm:p-5 md:p-6 bg-muted/20 relative overscroll-contain [scrollbar-width:thin] [scrollbar-color:rgba(156,163,175,0.4)_transparent]">
+                    <div className="tour-step-content w-full max-w-[420px] mx-auto pb-4 sm:pb-8 space-y-2.5 sm:space-y-5">
                         {children}
+                    </div>
+                </div>
 
-                        {/* Mobile in-flow Action Navigation */}
-                        <div className="sticky bottom-0 z-30 -mx-2.5 flex flex-col md:hidden items-center justify-between gap-2.5 border-t border-border bg-background/95 px-2.5 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-3 backdrop-blur-sm">
-                            {!canContinue && canContinueHint && (
-                                <p role="status" className="w-full text-center text-xs font-semibold text-rose-600 dark:text-rose-400">
-                                    {canContinueHint}
-                                </p>
-                            )}
-                            <div className="flex w-full items-center justify-between gap-2.5">
-                            {currentStep > 1 ? (
-                                <Button
-                                    variant="outline" 
-                                    onClick={() => {
-                                        setStep && setStep(currentStep - 1);
-                                    }}
-                                    disabled={savingNext || loading || isUploading}
-                                    className="h-11 flex-1 rounded-xl border-border bg-card text-xs font-bold text-foreground shadow-sm transition-all active:scale-95"
-                                >
-                                    <ArrowLeft className="mr-1 h-4 w-4" />
-                                    {t("common.actions.back", { defaultValue: "ថយ" })}
-                                </Button>
-                            ) : null}
+                {/* Mobile navigation stays outside the scroll area so it never covers form content. */}
+                <div className="flex flex-none flex-col items-center justify-between gap-2.5 border-t border-border bg-background px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] md:hidden">
+                    {!canContinue && canContinueHint && (
+                        <p role="status" className="w-full text-center text-xs font-semibold text-rose-600 dark:text-rose-400">
+                            {canContinueHint}
+                        </p>
+                    )}
+                    <div className="flex w-full items-center justify-between gap-2.5">
+                        {currentStep > 1 && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleBack}
+                                disabled={savingNext}
+                                className="min-h-12 min-w-0 flex-1 touch-manipulation rounded-xl border-border bg-card text-xs font-bold text-foreground shadow-sm transition-all active:scale-95"
+                            >
+                                <ArrowLeft className="mr-1 h-4 w-4" />
+                                {t("common.actions.back", { defaultValue: "ថយ" })}
+                            </Button>
+                        )}
 
-                            {currentStep < STEPS.length ? (
-                                <Button 
-                                    onClick={handleNext}
-                                    disabled={savingNext || loading || isUploading || !canContinue}
-                                    className="tour-next h-11 flex-1 rounded-xl bg-primary text-xs font-black text-primary-foreground shadow-md transition-all active:scale-95 hover:bg-primary/90"
-                                >
-                                    {savingNext ? (
-                                        <span className="flex items-center justify-center gap-1.5">
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                            <span>រក្សាទុក...</span>
-                                        </span>
-                                    ) : (
-                                        <span className="flex items-center justify-center gap-1.5">
-                                            <span>បន្ទាប់{nextStepObj ? `: ${nextStepObj.title}` : ""}</span>
-                                            <ArrowRight className="h-4 w-4" />
-                                        </span>
-                                    )}
-                                </Button>
-                            ) : (
-                                <Button 
-                                    onClick={handleFinalSave}
-                                    disabled={loading || savingNext || isUploading || !canContinue}
-                                    className="h-11 flex-1 rounded-xl bg-emerald-600 text-xs font-black text-white shadow-md shadow-emerald-500/20 transition-all active:scale-95 hover:bg-emerald-700"
-                                >
-                                    {savingNext ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                    <span className="ml-1.5">{t("common.actions.save", { defaultValue: "រក្សាទុក" })}</span>
-                                </Button>
-                            )}
-                            </div>
-                        </div>
+                        {currentStep < STEPS.length ? (
+                            <Button
+                                onClick={handleNext}
+                                disabled={savingNext || loading || isUploading || !canContinue}
+                                className="tour-next h-11 flex-1 rounded-xl bg-primary text-xs font-black text-primary-foreground shadow-md transition-all active:scale-95 hover:bg-primary/90"
+                            >
+                                {savingNext ? (
+                                    <span className="flex items-center justify-center gap-1.5">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        <span>រក្សាទុក...</span>
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center justify-center gap-1.5">
+                                        <span>បន្ទាប់{nextStepObj ? `: ${nextStepObj.title}` : ""}</span>
+                                        <ArrowRight className="h-4 w-4" />
+                                    </span>
+                                )}
+                            </Button>
+                        ) : (
+                            <Button
+                                onClick={handleFinalSave}
+                                disabled={loading || savingNext || isUploading || !canContinue}
+                                className="h-11 flex-1 rounded-xl bg-emerald-600 text-xs font-black text-white shadow-md shadow-emerald-500/20 transition-all active:scale-95 hover:bg-emerald-700"
+                            >
+                                {savingNext ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                <span className="ml-1.5">{t("common.actions.save", { defaultValue: "រក្សាទុក" })}</span>
+                            </Button>
+                        )}
                     </div>
                 </div>
                 
@@ -247,10 +252,11 @@ export const StepWizard = ({ children, currentStep, weddingId, onSave, loading, 
                     <div className="flex items-center gap-2">
                     {currentStep > 1 ? (
                         <Button 
+                            type="button"
                             variant="outline" 
-                            onClick={() => setStep && setStep(currentStep - 1)}
-                            disabled={savingNext || loading || isUploading}
-                            className="rounded-xl px-5 h-11 font-bold font-kantumruy text-xs text-foreground border-border hover:bg-muted active:scale-95 transition-all"
+                            onClick={handleBack}
+                            disabled={savingNext}
+                            className="min-h-12 touch-manipulation rounded-xl px-5 font-bold font-kantumruy text-xs text-foreground border-border hover:bg-muted active:scale-95 transition-all"
                         >
                             <ArrowLeft className="w-4 h-4 mr-1.5" />
                             {t("common.actions.back", { defaultValue: "ថយក្រោយ" })}

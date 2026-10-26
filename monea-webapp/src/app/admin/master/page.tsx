@@ -68,9 +68,9 @@ const adminModules = [
         group: "អាជីវកម្ម"
     },
     {
-        title: "ការទូទាត់ប្រាក់",
-        subtitle: "Payments",
-        desc: "ពិនិត្យការទូទាត់ និងផ្ទៀងផ្ទាត់វិក្កយបត្រ KHQR។",
+        title: "ការលក់ Template",
+        subtitle: "Template Sales",
+        desc: "គ្រប់គ្រងការលក់ Template, បង្កាន់ដៃទូទាត់ និងសិទ្ធិប្រើប្រាស់។",
         href: "/admin/master/payments",
         icon: CreditCard,
         group: "អាជីវកម្ម"

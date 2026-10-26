@@ -44,7 +44,7 @@ export function FinalCTA() {
                         initial={{ opacity: 1, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.5 }}
                         className="w-full flex justify-center relative z-10"
                     >
-                        <Link to={AUTH_URLS.SIGN_UP} className="group relative flex h-14 items-center justify-center overflow-hidden rounded-2xl border border-gold/45 bg-primary px-8 text-primary-foreground shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:border-gold/70 hover:bg-primary/90 active:translate-y-0 active:scale-[0.99] md:px-12">
+                        <Link to={AUTH_URLS.SIGN_UP} className="group relative flex h-14 items-center justify-center overflow-hidden rounded-2xl border border-primary bg-primary px-8 text-primary-foreground shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 active:translate-y-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:px-12">
                             <span className="font-kantumruy text-sm sm:text-base font-bold relative z-10 flex items-center justify-center gap-3">
                                 {t("cta.button")}
                                 <ArrowRight className="w-4 h-4 text-gold transition-transform duration-300 group-hover:translate-x-1.5 md:h-5 md:w-5" />

@@ -2,8 +2,8 @@
 <html lang="km">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/jpeg" href="/icons/logomoneo.jpg" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/webp" href="/icons/logomoneo.webp" />
+    <link rel="apple-touch-icon" href="/icons/logomoneo.webp" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -11,19 +11,29 @@
     <meta name="format-detection" content="telephone=no" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
 
-    <!-- Load invitation fonts without blocking the initial render or shifting text when they arrive late. -->
+    <!-- Load the system font before first paint; decorative invitation fonts remain non-blocking. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Battambang&family=Chenla&family=Content:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Dangrek&family=Fasthand&family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=Koulen&family=Moul&family=Moulpali&family=Noto+Sans+Khmer:wght@100..900&family=Noto+Serif+Khmer:wght@100..900&family=Odor+Mean+Chey&family=Pinyon+Script&family=Preahvihear&family=Siemreap&display=optional"
+      href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&display=block"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&display=block"
+        rel="stylesheet"
+      />
+    </noscript>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Battambang&family=Chenla&family=Content:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Dangrek&family=Fasthand&family=Koulen&family=Moul&family=Moulpali&family=Noto+Sans+Khmer:wght@100..900&family=Noto+Serif+Khmer:wght@100..900&family=Odor+Mean+Chey&family=Pinyon+Script&family=Preahvihear&family=Siemreap&family=Suwannaphum&display=optional"
       media="print"
       onload="this.media='all'"
       data-nonblocking-stylesheet
     />
     <noscript>
       <link
-        href="https://fonts.googleapis.com/css2?family=Battambang&family=Chenla&family=Content:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Dangrek&family=Fasthand&family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=Koulen&family=Moul&family=Moulpali&family=Noto+Sans+Khmer:wght@100..900&family=Noto+Serif+Khmer:wght@100..900&family=Odor+Mean+Chey&family=Pinyon+Script&family=Preahvihear&family=Siemreap&display=optional"
+        href="https://fonts.googleapis.com/css2?family=Battambang&family=Chenla&family=Content:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Dangrek&family=Fasthand&family=Koulen&family=Moul&family=Moulpali&family=Noto+Sans+Khmer:wght@100..900&family=Noto+Serif+Khmer:wght@100..900&family=Odor+Mean+Chey&family=Pinyon+Script&family=Preahvihear&family=Siemreap&family=Suwannaphum&display=optional"
         rel="stylesheet"
       />
     </noscript>
@@ -32,7 +42,7 @@
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
     <link rel="dns-prefetch" href="https://challenges.cloudflare.com" />
 
-    <title>ធៀបការឌីជីថល | TheapKa Digital - Online Invitation Khmer</title>
+    <title>MONEO - ធៀបការឌីជីថលខ្មែរ</title>
     <meta
       name="description"
       content="បង្កើតធៀបអញ្ជើញមង្គលការឌីជីថលបានយ៉ាងងាយស្រួល ភ្ជាប់ Google Maps, KHQR និង Telegram ក្នុងពេលតែមួយជាមួយ MONEO។"
@@ -49,23 +59,23 @@
     <!-- Open Graph / Facebook / Telegram -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://moneoez.com/" />
-    <meta property="og:title" content="ធៀបការឌីជីថល | TheapKa Digital - Online Invitation Khmer" />
+    <meta property="og:title" content="MONEO - ធៀបការឌីជីថលខ្មែរ" />
     <meta property="og:description" content="បង្កើតធៀបអញ្ជើញមង្គលការឌីជីថលជាភាសាខ្មែរ គ្រប់គ្រងភ្ញៀវ និងចែករំលែកការអញ្ជើញយ៉ាងងាយស្រួល។" />
-    <meta property="og:image" content="https://moneoez.com/icons/logomoneo.jpg" />
+    <meta property="og:image" content="https://moneoez.com/icons/SE.png" />
     <meta property="og:image:alt" content="MONEO — ធៀបអញ្ជើញមង្គលការឌីជីថលនៅកម្ពុជា" />
     <meta property="og:site_name" content="MONEO" />
     <meta property="og:locale" content="km_KH" />
     <meta property="og:locale:alternate" content="en_US" />
-    <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:width" content="1024" />
-    <meta property="og:image:height" content="1024" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
 
     <!-- Twitter Cards -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://moneoez.com/" />
-    <meta name="twitter:title" content="ធៀបការឌីជីថល | TheapKa Digital - Online Invitation Khmer" />
+    <meta name="twitter:title" content="MONEO - ធៀបការឌីជីថលខ្មែរ" />
     <meta name="twitter:description" content="បង្កើតធៀបអញ្ជើញមង្គលការឌីជីថលជាភាសាខ្មែរ គ្រប់គ្រងភ្ញៀវ និងចែករំលែកការអញ្ជើញយ៉ាងងាយស្រួល។" />
-    <meta name="twitter:image" content="https://moneoez.com/icons/logomoneo.jpg" />
+    <meta name="twitter:image" content="https://moneoez.com/icons/SE.png" />
     <meta name="twitter:image:alt" content="MONEO — ធៀបអញ្ជើញមង្គលការឌីជីថលនៅកម្ពុជា" />
 
     <!-- JSON-LD Structured Data for Google Search Rich Snippets -->
@@ -82,7 +92,7 @@
         "@type": "Offer",
         "price": "0",
         "priceCurrency": "USD",
-        "description": "សាកល្បងឥតគិតថ្លៃរយៈពេល ១៤ ថ្ងៃជាមួយ Template free។ កញ្ចប់បង់ប្រាក់អាចប្រើ Template បានច្រើន និងមុខងារបន្ថែមច្រើនទៀត។"
+        "description": "ប្រើគំរូ M2 ដោយឥតគិតថ្លៃជានិច្ច និងគ្រប់គ្រងភ្ញៀវរហូតដល់ ២០ នាក់។ កញ្ចប់បង់ប្រាក់អាចប្រើគំរូបានច្រើន និងមុខងារបន្ថែម។"
       },
       "publisher": {
         "@id": "https://moneoez.com/#organization"
@@ -107,7 +117,7 @@
           "name": "តើកញ្ចប់ឥតគិតថ្លៃរបស់ MONEO មានសុពលភាពរយៈពេលប៉ុន្មាន?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "គណនីថ្មីអាចសាកល្បងមុខងារសំខាន់ៗបានរយៈពេល ១៤ ថ្ងៃជាមួយ Template free និងភ្ញៀវរហូតដល់ ២០ នាក់។"
+            "text": "គណនី Free អាចប្រើគំរូ M2 ដោយឥតគិតថ្លៃជានិច្ច និងគ្រប់គ្រងភ្ញៀវរហូតដល់ ២០ នាក់។"
           }
         },
         {
@@ -127,7 +137,7 @@
       "@type": "WebPage",
       "@id": "https://moneoez.com/#webpage",
       "url": "https://moneoez.com/",
-      "name": "ធៀបការឌីជីថល | TheapKa Digital - Online Invitation Khmer",
+      "name": "MONEO - ធៀបការឌីជីថលខ្មែរ",
       "description": "បង្កើតធៀបអញ្ជើញមង្គលការឌីជីថលជាភាសាខ្មែរ គ្រប់គ្រងភ្ញៀវ និងចែករំលែកការអញ្ជើញយ៉ាងងាយស្រួល។",
       "isPartOf": {
         "@id": "https://moneoez.com/#website"
@@ -149,7 +159,7 @@
           "url": "https://moneoez.com/",
           "logo": {
             "@type": "ImageObject",
-            "url": "https://moneoez.com/icons/logomoneo.jpg",
+            "url": "https://moneoez.com/icons/logomoneo.webp",
             "width": 1024,
             "height": 1024
           }

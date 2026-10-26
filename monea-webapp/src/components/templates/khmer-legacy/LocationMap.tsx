@@ -3,7 +3,7 @@ import { m } from 'framer-motion';
 import { MapPin, Navigation } from 'lucide-react';
 import { RevealSection } from '../shared/CinematicComponents';
 import { WeddingData } from '../types';
-import { getDirectMapUrl } from '../shared/mapUtils';
+import { getDirectMapUrl, getMapEmbedUrl, isGoogleMapsShortLink } from '../shared/mapUtils';
 import { getWeddingPhotoAtSlot } from '../shared/weddingPhotos';
 
 interface LocationMapProps {
@@ -14,6 +14,8 @@ interface LocationMapProps {
 export function LocationMap({ wedding, mapPan }: LocationMapProps) {
     const mapLink = wedding.themeSettings?.mapLink || wedding.mapUrl || "";
     const locationText = wedding.location || "";
+    const locationTitle = wedding.themeSettings?.customLabels?.locationTitle || "ទីតាំងកម្មវិធី";
+    const locationSubtitle = wedding.themeSettings?.customLabels?.locationSubtitle;
     if (!mapLink && !locationText) return null;
 
     const portraitImage = getWeddingPhotoAtSlot(wedding, "location")?.url
@@ -21,6 +23,8 @@ export function LocationMap({ wedding, mapPan }: LocationMapProps) {
         || getWeddingPhotoAtSlot(wedding, "couple")?.url
         || getWeddingPhotoAtSlot(wedding, "cover")?.url;
     const directMapUrl = getDirectMapUrl(mapLink, locationText);
+    const mapLocation = mapLink || locationText;
+    const embedUrl = !isGoogleMapsShortLink(mapLocation) ? getMapEmbedUrl(mapLocation, locationText) : null;
 
     return (
         <section id="location" className="relative overflow-hidden bg-white px-4 py-10 font-kantumruy">
@@ -47,14 +51,28 @@ export function LocationMap({ wedding, mapPan }: LocationMapProps) {
                             />
                         </div>}
 
+                        {embedUrl && (
+                            <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl border border-[#D4AF37]/25 bg-[#FBF8F0]">
+                                <iframe
+                                    title={`ផែនទីបង្ហាញទីតាំង ${locationText || "កម្មវិធី"}`}
+                                    src={embedUrl}
+                                    className="h-full w-full border-0"
+                                    loading="lazy"
+                                    allowFullScreen
+                                    referrerPolicy="no-referrer-when-downgrade"
+                                />
+                            </div>
+                        )}
+
                         {/* Right: Location & QR Block */}
                         <div className="flex flex-col items-center text-center">
                             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-[#D4AF37]/25 bg-[#FBF8F0] text-[#A27A1E]">
                                 <MapPin size={22} strokeWidth={1.8} aria-hidden="true" />
                             </div>
                             <h3 className="font-khmer-moul text-lg leading-relaxed text-[#805C00]">
-                                ទីតាំងកម្មវិធី
+                                {locationTitle}
                             </h3>
+                            {locationSubtitle && <p className="mt-2 max-w-xs break-words text-sm leading-7 text-stone-600">{locationSubtitle}</p>}
                             {locationText && (
                                 <p className="mt-2 max-w-xs break-words text-sm leading-7 text-stone-600">
                                     {locationText}

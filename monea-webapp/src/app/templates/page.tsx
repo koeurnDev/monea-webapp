@@ -16,6 +16,29 @@ import { moneaClient } from '@/lib/api-client';
 
 const TEMPLATES = TEMPLATE_CATALOG;
 
+type PublicTemplatePrice = {
+    price: number;
+    isFree: boolean;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    value !== null && typeof value === 'object' && !Array.isArray(value);
+
+function normalizePublicTemplatePricing(value: unknown): Record<string, PublicTemplatePrice> {
+    if (!isRecord(value)) return {};
+    const payload = isRecord(value.data) ? value.data : value;
+    const pricing = isRecord(payload.templatePricing) ? payload.templatePricing : payload;
+
+    return Object.fromEntries(
+        Object.entries(pricing).flatMap(([templateId, entry]) => {
+            if (!isRecord(entry)) return [];
+            const price = Number(entry.price ?? entry.amount);
+            if (!Number.isFinite(price) || price < 0 || price > 99.99) return [];
+            return [[templateId, { price, isFree: entry.isFree === true || price === 0 }]];
+        }),
+    );
+}
+
 const FILTER_LABELS = {
     all: 'ទាំងអស់',
     wedding: 'មង្គលការ',
@@ -25,6 +48,7 @@ const FILTER_LABELS = {
 export default function TemplateGalleryPage() {
     const [filter, setFilter] = useState<'all' | 'wedding' | 'anniversary'>('all');
     const [presentationMetadata, setPresentationMetadata] = useState<Record<string, TemplatePresentationMetadata> | null>(null);
+    const [templatePricing, setTemplatePricing] = useState<Record<string, PublicTemplatePrice>>({});
 
     useEffect(() => {
         let cancelled = false;
@@ -45,7 +69,19 @@ export default function TemplateGalleryPage() {
             }
         };
 
+        const loadTemplatePricing = async () => {
+            const response = await moneaClient.get<unknown>('/api/template-pricing', { cache: 'no-store' });
+            if (response.error || !response.data) {
+                console.error('[TemplateGalleryPage] Failed to load template pricing:', response.error || 'Pricing response was empty');
+                return;
+            }
+            if (!cancelled) {
+                setTemplatePricing(normalizePublicTemplatePricing(response.data));
+            }
+        };
+
         void loadPresentationMetadata();
+        void loadTemplatePricing();
         return () => {
             cancelled = true;
         };
@@ -55,14 +91,17 @@ export default function TemplateGalleryPage() {
         const metadata = presentationMetadata?.[template.id];
         return {
             ...template,
+            title: metadata?.title ?? template.title,
+            description: metadata?.description ?? template.description,
             image: metadata?.image ?? template.image,
             eventType: metadata?.eventType ?? template.eventType,
-            hasCustomCover: !!metadata && metadata.image !== template.image,
         };
     });
     const filteredTemplates = galleryTemplates.filter((template) =>
         filter === 'all' || template.eventType === filter || template.eventType === 'both',
     );
+    const heroTemplateImage = galleryTemplates.find((template) => template.id === 'blossom-romance')?.image
+        ?? TEMPLATE_CATALOG.find((template) => template.id === 'blossom-romance')?.image;
 
     return (
         <>
@@ -75,13 +114,16 @@ export default function TemplateGalleryPage() {
             <meta property="og:url" content="https://moneoez.com/templates" />
             <meta property="og:title" content="MONEO | Khmer Digital Wedding Invitation Templates | គំរូធៀបការឌីជីថល" />
             <meta property="og:description" content="ស្វែងរកគំរូធៀបមង្គលការ និងគំរូខួបអនុស្សាវរីយ៍ដែលសមនឹងអ្នក។" />
-            <meta property="og:image" content="https://moneoez.com/icons/logomoneo.jpg" />
+            <meta property="og:image" content="https://moneoez.com/icons/SE.png" />
             <meta property="og:image:alt" content="គំរូធៀបអាពាហ៍ពិពាហ៍ឌីជីថលពី MONEO" />
+            <meta property="og:image:type" content="image/png" />
+            <meta property="og:image:width" content="1200" />
+            <meta property="og:image:height" content="630" />
             <meta name="twitter:card" content="summary_large_image" />
             <meta name="twitter:url" content="https://moneoez.com/templates" />
             <meta name="twitter:title" content="MONEO | Khmer Digital Wedding Invitation Templates | គំរូធៀបការឌីជីថល" />
             <meta name="twitter:description" content="ស្វែងរកគំរូធៀបមង្គលការ និងគំរូខួបអនុស្សាវរីយ៍ដែលសមនឹងអ្នក។" />
-            <meta name="twitter:image" content="https://moneoez.com/icons/logomoneo.jpg" />
+            <meta name="twitter:image" content="https://moneoez.com/icons/SE.png" />
             <meta name="twitter:image:alt" content="គំរូធៀបអាពាហ៍ពិពាហ៍ឌីជីថលពី MONEO" />
             <script type="application/ld+json">{JSON.stringify({
                 "@context": "https://schema.org",
@@ -105,7 +147,7 @@ export default function TemplateGalleryPage() {
         <div className="min-h-screen overflow-hidden bg-[#f5f2eb] font-kantumruy text-[#1c2e28] transition-colors duration-300 dark:bg-[#0d1210] dark:text-[#f1eee6]">
             <NavBar />
             <main className="mx-auto max-w-[1440px] px-4 pb-16 pt-24 sm:px-6 sm:pt-28 lg:px-10">
-                <section className="relative isolate overflow-hidden rounded-[2rem] bg-[#173d32] px-6 py-10 text-[#f7f2e8] shadow-[0_30px_80px_rgba(27,51,42,.16)] sm:rounded-[2.5rem] sm:px-10 sm:py-14 lg:px-16 lg:py-16">
+                <section className="relative isolate overflow-hidden rounded-[2rem] bg-[#173d32] px-6 py-8 text-[#f7f2e8] shadow-[0_30px_80px_rgba(27,51,42,.16)] sm:rounded-[2.5rem] sm:px-10 sm:py-10 lg:px-16 lg:py-12">
                     <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-32 -z-10 h-[28rem] w-[28rem] rounded-full border border-[#d8c69a]/20 sm:right-8 sm:top-1/2 sm:-translate-y-1/2">
                         <div className="absolute inset-8 rounded-full border border-[#d8c69a]/15" />
                         <div className="absolute inset-16 rounded-full border border-[#d8c69a]/10" />
@@ -129,11 +171,11 @@ export default function TemplateGalleryPage() {
                             </div>
                         </div>
 
-                        <div aria-hidden="true" className="relative mx-auto hidden h-[280px] w-full max-w-[360px] lg:block lg:h-[310px]">
-                            <div className="absolute right-5 top-8 h-[230px] w-[164px] rotate-[10deg] rounded-[1.4rem] border border-[#eadbb9]/30 bg-[#f1e8d5] p-2 shadow-2xl">
-                                <img src="/assets/blossom-romance/blossom-arch-bg.jpg" alt="" className="h-full w-full rounded-[1rem] object-cover" />
+                        <div aria-hidden="true" className="relative mx-auto hidden h-[220px] w-full max-w-[320px] lg:block lg:h-[250px]">
+                            <div className="absolute right-5 top-6 h-[200px] w-[142px] rotate-[10deg] rounded-[1.4rem] border border-[#eadbb9]/30 bg-[#f1e8d5] p-2 shadow-2xl">
+                                {heroTemplateImage && <img src={heroTemplateImage} alt="" className="h-full w-full rounded-[1rem] object-cover" />}
                             </div>
-                            <div className="absolute left-8 top-2 flex h-[250px] w-[178px] -rotate-[7deg] flex-col items-center justify-center overflow-hidden rounded-[1.4rem] border border-[#d9c89e]/60 bg-[#e9e0cd] p-5 text-center text-[#244136] shadow-2xl">
+                            <div className="absolute left-8 top-1 flex h-[220px] w-[156px] -rotate-[7deg] flex-col items-center justify-center overflow-hidden rounded-[1.4rem] border border-[#d9c89e]/60 bg-[#e9e0cd] p-5 text-center text-[#244136] shadow-2xl">
                                 <div className="absolute inset-2 border border-[#9d8558]/35" />
                                 <img src="/khmer-invite-starter-kit/elements/crest.svg" alt="" className="relative h-12 w-12 opacity-80" />
                                 <span className="relative mt-4 font-serif text-[9px] uppercase tracking-[0.3em] text-[#8d7448]">Save the date</span>
@@ -153,7 +195,7 @@ export default function TemplateGalleryPage() {
                         <div>
                             <p className="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-[#8c7955]">The collection</p>
                             <h2 id="template-list-heading" className="text-2xl font-bold tracking-tight text-[#1c2e28] dark:text-[#f1eee6] sm:text-3xl">ជ្រើសរើសរចនាបថរបស់អ្នក</h2>
-                            <p className="mt-2 text-sm text-[#6d756e] dark:text-[#a7afa8]">គម្របនីមួយៗបង្ហាញតែលេខសម្គាល់គំរូប៉ុណ្ណោះ។</p>
+                            <p className="mt-2 text-sm text-[#6d756e] dark:text-[#a7afa8]">មើលរូបគម្រប ឈ្មោះ ព័ត៌មាន និងតម្លៃរបស់គំរូនីមួយៗ។</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <span className="hidden text-xs text-[#7b817b] dark:text-[#a7afa8] sm:inline">បង្ហាញ {filteredTemplates.length} គំរូ</span>
@@ -178,21 +220,14 @@ export default function TemplateGalleryPage() {
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
                         {filteredTemplates.map((template, templateIndex) => {
-                                const isPaperDesign = template.id === 'nea-m05' && !template.hasCustomCover;
-
                                 return (
                                     <article
                                         key={template.id}
-                                        aria-label={`គម្របគំរូ ${template.code}`}
+                                            aria-label={`គំរូ ${template.code}: ${template.title}`}
                                         className="overflow-hidden rounded-[1.4rem] border border-[#e3ded3] bg-[#fbfaf7] shadow-[0_8px_24px_rgba(48,55,46,.05)] dark:border-white/10 dark:bg-[#171e1a] dark:shadow-[0_12px_30px_rgba(0,0,0,.22)]"
                                     >
                                         <div className="relative aspect-[1.08/1] overflow-hidden bg-[#e9e3d5] dark:bg-[#242a25]">
-                                            {isPaperDesign ? (
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#68745c] bg-cover bg-center p-8 text-center" style={{ backgroundImage: "url('/khmer-invite-starter-kit/textures/paper-olive.webp')" }}>
-                                                    <div className="absolute inset-3 border border-[#a38b55]/45" />
-                                                    <img src="/khmer-invite-starter-kit/elements/crest.svg" alt="" className="relative h-14 w-14 opacity-80" />
-                                                </div>
-                                            ) : (
+                                            {template.image ? (
                                                 <img
                                                     src={template.image}
                                                     alt=""
@@ -200,6 +235,8 @@ export default function TemplateGalleryPage() {
                                                     fetchPriority={templateIndex === 0 ? 'high' : 'auto'}
                                                     className="h-full w-full object-cover"
                                                 />
+                                            ) : (
+                                                <div className="absolute inset-0 bg-gradient-to-br from-[#e9e3d5] via-[#e2e8df] to-[#d9d2c4] dark:from-[#242a25] dark:via-[#202923] dark:to-[#29271f]" />
                                             )}
                                             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#14231d]/65 via-transparent to-[#14231d]/10" />
                                             <div className="absolute left-4 top-4">
@@ -208,6 +245,15 @@ export default function TemplateGalleryPage() {
                                                 </span>
                                             </div>
                                         </div>
+                                        {templatePricing[template.id] && (
+                                            <div className="p-4 sm:p-5">
+                                                <span className="inline-flex rounded-full bg-[#e9eee7] px-3 py-1 text-xs font-bold text-[#315844] dark:bg-white/10 dark:text-[#c5d8c2]">
+                                                    {templatePricing[template.id].isFree
+                                                        ? 'ឥតគិតថ្លៃ'
+                                                        : `$${templatePricing[template.id].price.toFixed(2)}`}
+                                                </span>
+                                            </div>
+                                        )}
                                     </article>
                                 );
                             })}

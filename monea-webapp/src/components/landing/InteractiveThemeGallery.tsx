@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
@@ -11,6 +11,11 @@ import {
     Heart 
 } from "lucide-react";
 import { AUTH_URLS } from "@/lib/constants";
+import { moneaClient } from "@/lib/api-client";
+import {
+    normalizeTemplatePresentationMetadata,
+    type TemplatePresentationMetadata,
+} from "@/components/templates/template-config";
 
 interface TemplateCard {
     id: string;
@@ -19,7 +24,6 @@ interface TemplateCard {
     description: string;
     palette: string[];
     tag: string;
-    image: string;
     popular?: boolean;
 }
 
@@ -31,7 +35,6 @@ const TEMPLATES: TemplateCard[] = [
         description: "ពណ៌ផ្កាឈូកស្រទន់ រំលេចដោយកម្រងផ្កាកុលាប និងផ្កាម្លិះ បង្ហាញពីសេចក្តីស្រឡាញ់ដ៏បរិសុទ្ធ។",
         palette: ["#E892A2", "#FFF0F4", "#4A1525"],
         tag: "រ៉ូមែនទិក",
-        image: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=600&auto=format&fit=crop"
     },
     {
         id: "emerald-garden",
@@ -40,7 +43,6 @@ const TEMPLATES: TemplateCard[] = [
         description: "ពណ៌បៃតងត្បូងមរកត បែបធម្មជាតិស្រស់បំព្រង ទំនើប និងមានភាពស្ងប់ស្ងាត់ប្រកបដោយភាពថ្លៃថ្នូរ។",
         palette: ["#1B4D3E", "#D4AF37", "#0B1D16"],
         tag: "ប្រណិតភាព",
-        image: "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=600&auto=format&fit=crop"
     },
     {
         id: "modern-minimal",
@@ -49,11 +51,33 @@ const TEMPLATES: TemplateCard[] = [
         description: "រចនាប័ទ្មបែប Minimalist សាមញ្ញតែទាក់ទាញ អក្សរច្បាស់ៗ ផ្តោតលើភាពស៊ីវិល័យនៃយុគសម័យថ្មី។",
         palette: ["#1E293B", "#F8FAFC", "#C5A880"],
         tag: "ទាន់សម័យ",
-        image: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=600&auto=format&fit=crop"
     }
 ];
 
 export function InteractiveThemeGallery() {
+    const [metadata, setMetadata] = useState<Record<string, TemplatePresentationMetadata> | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadMetadata = async () => {
+            try {
+                const response = await moneaClient.get<unknown>("/api/templates/metadata", { cache: "no-store" });
+                if (response.error || !response.data) {
+                    throw new Error(response.error || "Template metadata response was empty");
+                }
+                const normalized = normalizeTemplatePresentationMetadata(response.data);
+                if (!cancelled) setMetadata(normalized);
+            } catch (error) {
+                console.error("[InteractiveThemeGallery] Failed to load template cover metadata:", error);
+            }
+        };
+
+        void loadMetadata();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     return (
         <section id="templates" className="py-20 sm:py-28 bg-[#FAF8F5] dark:bg-[#0B0B0E] font-kantumruy border-t border-border/60 relative overflow-hidden transition-colors duration-300">
             <div className="container mx-auto px-4 sm:px-6 max-w-6xl relative z-10">
@@ -82,7 +106,7 @@ export function InteractiveThemeGallery() {
                         className="inline-flex items-center gap-2 px-6 h-12 rounded-xl bg-card hover:bg-muted border border-border text-foreground font-bold text-xs shadow-xs active:scale-95 transition-all self-start md:self-auto"
                     >
                         <span>មើលគ្រប់ម៉ូដទាំងអស់</span>
-                        <ArrowRight className="w-4 h-4 text-rose-600" />
+                        <ArrowRight className="w-4 h-4 text-primary" />
                     </Link>
                 </div>
 
@@ -97,12 +121,16 @@ export function InteractiveThemeGallery() {
                         >
                             {/* Card Image */}
                             <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-                                <img 
-                                    src={tmpl.image} 
-                                    alt={tmpl.khmerTitle} 
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                    loading="lazy"
-                                />
+                                {metadata?.[tmpl.id]?.image ? (
+                                    <img
+                                        src={metadata[tmpl.id].image}
+                                        alt={metadata[tmpl.id].title || tmpl.khmerTitle}
+                                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        loading="lazy"
+                                    />
+                                ) : (
+                                    <div aria-label="មិនទាន់មានរូប Cover" className="absolute inset-0 bg-gradient-to-br from-muted via-card to-muted" />
+                                )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                                 
                                 {/* Badge */}
@@ -148,7 +176,7 @@ export function InteractiveThemeGallery() {
 
                                     <Link
                                         to={AUTH_URLS.SIGN_UP}
-                                        className="text-xs text-rose-600 dark:text-rose-400 font-bold hover:underline inline-flex items-center gap-1"
+                                        className="text-xs text-primary font-bold hover:underline inline-flex items-center gap-1"
                                     >
                                         <span>រចនាម៉ូដនេះ</span>
                                         <ArrowRight className="w-3 h-3" />

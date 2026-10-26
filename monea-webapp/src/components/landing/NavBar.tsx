@@ -57,7 +57,7 @@ export function NavBar() {
                     <div className="flex items-center gap-2 shrink-0 font-kantumruy">
                         <Link
                             to={AUTH_URLS.SIGN_UP}
-                            className="inline-flex min-h-9 items-center justify-center rounded-full border border-gold/30 bg-primary px-4 text-xs font-bold text-primary-foreground shadow-sm transition hover:-translate-y-px hover:border-gold/50 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-5 sm:text-xs"
+                            className="inline-flex min-h-9 items-center justify-center rounded-full border border-primary bg-primary px-4 text-xs font-bold text-primary-foreground shadow-sm transition hover:-translate-y-px hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-5 sm:text-xs"
                         >
                             ចុះឈ្មោះ
                         </Link>

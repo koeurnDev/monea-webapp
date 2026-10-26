@@ -8,6 +8,8 @@ import { getConfiguredPaymentAccounts, getWeddingPhotos, getWeddingSectionPhoto 
 import { getDirectMapUrl, getMapEmbedUrl } from "./shared/mapUtils";
 import { PhotoImage } from "./shared/PhotoImage";
 import { CoupleNamesLine, OneLineName } from "./shared/OneLineName";
+import { MoneaFooterBrand } from "./shared/MoneaFooterBrand";
+import { SocialLinksSection } from "./shared/SocialLinksSection";
 
 interface YouTubePlayerStateEvent {
     data: number;
@@ -165,6 +167,10 @@ function GardenStory({ wedding }: { wedding: WeddingData }) {
                                 src={image}
                                 alt={`រូបភាពរឿងរ៉ាវស្នេហាទី ${index + 1}`}
                                 className={`w-full object-cover ${storyImages.length > 1 && index === 0 ? "aspect-[16/9]" : "aspect-[4/3]"}`}
+                                sizes={storyImages.length > 1 && index === 0
+                                    ? "(max-width: 640px) 100vw, (max-width: 1024px) 66vw, 800px"
+                                    : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 400px"}
+                                loading="lazy"
                             />
                             {wedding.themeSettings?.storyImageCaptions?.[index]?.trim() && (
                                 <p className="px-3 py-2 text-center font-kantumruy text-xs leading-6 text-[#566049]">
@@ -233,13 +239,26 @@ function GardenLocation({ wedding }: { wedding: WeddingData }) {
 
     return (
         <section id="location" className="bg-gradient-to-b from-[#e9eadb] to-[#f6efdd] px-5 py-12 sm:px-8 sm:py-14">
-            <GardenSectionHeading eyebrow="THE VENUE">ទីតាំងប្រារព្ធពិធី</GardenSectionHeading>
+            <GardenSectionHeading eyebrow="THE VENUE">
+                {wedding.themeSettings?.customLabels?.locationTitle || "ទីតាំងប្រារព្ធពិធី"}
+            </GardenSectionHeading>
+            {wedding.themeSettings?.customLabels?.locationSubtitle && (
+                <p className="mx-auto -mt-4 mb-3 max-w-md px-5 text-center font-kantumruy text-sm leading-7 text-[#756948]">
+                    {wedding.themeSettings.customLabels.locationSubtitle}
+                </p>
+            )}
             <div className="mx-auto max-w-md p-3 sm:p-4 lg:max-w-5xl lg:grid lg:grid-cols-2 lg:items-center lg:gap-5 lg:p-6">
                 {(photo || embedUrl) && (
                     <div className="space-y-4">
                         {photo && (
                             <div className="relative overflow-hidden">
-                                <PhotoImage src={photo} alt={location || "រូបទីតាំងកម្មវិធី"} className="aspect-[4/3] w-full object-cover lg:aspect-[16/10]" />
+                                <PhotoImage
+                                    src={photo}
+                                    alt={location || "រូបទីតាំងកម្មវិធី"}
+                                    className="aspect-[4/3] w-full object-cover lg:aspect-[16/10]"
+                                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 800px"
+                                    loading="lazy"
+                                />
                             </div>
                         )}
                         {embedUrl && <div className="h-52 overflow-hidden lg:h-64"><iframe title="Wedding map" src={embedUrl} className="h-full w-full border-0" loading="lazy" allowFullScreen referrerPolicy="no-referrer-when-downgrade" /></div>}
@@ -270,11 +289,21 @@ function GardenGallery({ wedding }: { wedding: WeddingData }) {
 
     return (
         <section id="gallery" className="bg-gradient-to-b from-[#fffdf7] to-[#f6efdd] px-5 py-12 sm:px-8 sm:py-14">
-            <GardenSectionHeading eyebrow="MEMORIES">កម្រងរូបភាពអនុស្សាវរីយ៍</GardenSectionHeading>
+            <GardenSectionHeading eyebrow="MEMORIES">
+                {wedding.themeSettings?.customLabels?.galleryTitle || wedding.themeSettings?.customLabels?.gallery_title || "កម្រងរូបភាពអនុស្សាវរីយ៍"}
+            </GardenSectionHeading>
             <div className="mx-auto grid max-w-lg grid-cols-2 gap-3 sm:gap-4 lg:max-w-2xl lg:grid-cols-3">
                 {photos.map((photo, index) => (
                     <button key={`${photo.url}-${index}`} type="button" onClick={() => setSelectedPhoto(photo.url)} aria-label={`មើលរូបភាពទី ${index + 1}`} className={`group relative overflow-hidden transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a2e] focus-visible:ring-offset-2 ${index === 0 ? photos.length > 1 ? "col-span-2 lg:col-span-2" : "col-span-2 lg:col-span-3" : ""}`}>
-                        <PhotoImage src={photo.url} alt={`រូបភាពអនុស្សាវរីយ៍ទី ${index + 1}`} className={`w-full object-cover transition duration-500 group-hover:scale-[1.02] ${index === 0 ? "aspect-[16/9]" : "aspect-[4/3]"}`} />
+                        <PhotoImage
+                            src={photo.url}
+                            alt={`រូបភាពអនុស្សាវរីយ៍ទី ${index + 1}`}
+                            className={`w-full object-cover transition duration-500 group-hover:scale-[1.02] ${index === 0 ? "aspect-[16/9]" : "aspect-[4/3]"}`}
+                            sizes={index === 0
+                                ? "(max-width: 640px) 100vw, 800px"
+                                : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 400px"}
+                            loading="lazy"
+                        />
                     </button>
                 ))}
             </div>
@@ -282,7 +311,12 @@ function GardenGallery({ wedding }: { wedding: WeddingData }) {
                 <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#172017]/95 p-4" role="dialog" aria-modal="true" aria-label="រូបភាពពង្រីក" onClick={() => setSelectedPhoto(null)}>
                     <button type="button" onClick={() => setSelectedPhoto(null)} aria-label="បិទរូបភាព" className="absolute right-4 top-4 rounded-full bg-white/10 p-3 text-white"><X className="h-5 w-5" /></button>
                     <div className="relative max-h-[85dvh] max-w-3xl overflow-hidden rounded-2xl" onClick={(event) => event.stopPropagation()}>
-                        <PhotoImage src={selectedPhoto} alt="រូបភាពអនុស្សាវរីយ៍ពង្រីក" className="max-h-[85dvh] max-w-full object-contain" />
+                        <PhotoImage
+                            src={selectedPhoto}
+                            alt="រូបភាពអនុស្សាវរីយ៍ពង្រីក"
+                            className="max-h-[85dvh] max-w-full object-contain"
+                            sizes="(max-width: 768px) 100vw, 800px"
+                        />
                     </div>
                 </div>
             )}
@@ -304,6 +338,11 @@ function GardenGift({ wedding }: { wedding: WeddingData }) {
                 {wedding.themeSettings?.customLabels?.giftSubtitle
                     || "សម្រាប់ភ្ញៀវកិត្តិយសដែលមិនអាចអញ្ជើញចូលរួមដោយផ្ទាល់ អាចផ្ញើចំណងដៃតាមរយៈ KHQR ខាងក្រោម"}
             </p>
+            {wedding.themeSettings?.customLabels?.giftBadge && (
+                <p className="mx-auto -mt-4 mb-5 w-fit rounded-full border border-[#b38b1d]/35 px-3 py-1 text-xs font-semibold text-[#756948]">
+                    {wedding.themeSettings.customLabels.giftBadge}
+                </p>
+            )}
             <div className="mx-auto grid max-w-md gap-4 lg:max-w-4xl lg:gap-5">
                 {accounts.map((account, index) => {
                     const accountQr = account.qrUrl || account.qrCodeUrl;
@@ -498,7 +537,13 @@ export default function GardenEditorial({ wedding, guestName, config }: Template
 
             {!revealed && (
                 <section className="fixed inset-0 z-[100] flex min-h-[100dvh] items-center justify-center overflow-x-hidden overflow-y-auto bg-[#f4e8d7] px-5 py-8 text-center text-[#75551f]" style={{ paddingTop: "max(2rem, env(safe-area-inset-top))", paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}>
-                    <div aria-hidden="true" className="absolute inset-0 bg-[url('/assets/blossom-romance/blossom-arch-bg.jpg')] bg-cover bg-[center_46%]" />
+                    {(!wedding.previewUploadedImagesOnly || heroPhoto) && (
+                        <div
+                            aria-hidden="true"
+                            className={`absolute inset-0 bg-cover bg-[center_46%] ${!wedding.previewUploadedImagesOnly ? "bg-[url('/assets/blossom-romance/blossom-arch-bg.jpg')]" : ""}`}
+                            style={wedding.previewUploadedImagesOnly ? { backgroundImage: `url("${heroPhoto}")` } : undefined}
+                        />
+                    )}
                     <div aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,250,239,.22),rgba(246,234,216,.42))]" />
                     <div className="relative z-10 mx-auto flex min-h-[min(760px,calc(100dvh-4rem))] w-full max-w-[430px] flex-col items-center justify-center rounded-none border-0 bg-transparent px-4 py-6 shadow-none sm:px-7 sm:py-8 lg:max-w-[540px] lg:px-10 lg:py-10">
                         <p className="mb-2 font-khmer-moul text-xs tracking-wide text-[#8d671d] drop-shadow-[0_1px_2px_rgba(255,255,255,.9)] sm:text-sm lg:text-base">
@@ -548,7 +593,7 @@ export default function GardenEditorial({ wedding, guestName, config }: Template
                         </p>
                         <button type="button" onClick={openInvitation} className="mt-4 inline-flex w-full max-w-[680px] min-h-14 items-center justify-center gap-2 rounded-xl border border-[#d0af58] bg-gradient-to-b from-[#f4d883] via-[#e6c86d] to-[#c79d3b] px-6 py-3 font-khmer-moul text-sm text-[#5a4317] shadow-[0_6px_18px_rgba(112,82,23,0.18)] transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a2e] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0] lg:mt-6 lg:min-h-[3.5rem] lg:text-base">
                             <Music2 aria-hidden="true" className="h-4 w-4" />
-                            <span className="leading-none">បើកសំបុត្រអញ្ជើញ</span>
+                            <span className="leading-none">{wedding.themeSettings?.customLabels?.heroButton || "បើកសំបុត្រអញ្ជើញ"}</span>
                         </button>
                     </div>
                 </section>
@@ -565,7 +610,7 @@ export default function GardenEditorial({ wedding, guestName, config }: Template
                 <>
                     <main className="m08-invitation-page w-full max-w-none overflow-hidden bg-transparent">
                         <section id="hero" className="relative isolate overflow-hidden bg-gradient-to-b from-[#f8f2e5] to-[#f2eadb] px-5 py-8 text-center text-[#604b2c]">
-                            {heroPhoto && <PhotoImage src={heroPhoto} alt={`${wedding.groomName} និង ${wedding.brideName}`} className="absolute inset-0 -z-10 h-full w-full object-cover opacity-25 mix-blend-multiply" loading="eager" />}
+                            {heroPhoto && <PhotoImage src={heroPhoto} alt={`${wedding.groomName} និង ${wedding.brideName}`} className="absolute inset-0 -z-10 h-full w-full object-cover opacity-25 mix-blend-multiply" sizes="100vw" loading="eager" />}
                             <div className="m08-hero-content relative mx-auto max-w-lg px-2 py-7 sm:px-5 sm:py-9">
                                 {hasParents && (
                                     <div className="m08-hero-parents mb-5 grid grid-cols-2 gap-3 border-b border-[#b8944c]/30 pb-5 text-center">
@@ -578,6 +623,11 @@ export default function GardenEditorial({ wedding, guestName, config }: Template
                                     </div>
                                 )}
                                 <h1 className="m08-hero-invitation-title font-khmer-moul text-sm leading-7 text-[#80632e] sm:text-base">{getInvitationTitle(wedding)}</h1>
+                                {wedding.themeSettings?.customLabels?.heroSubtitle && (
+                                    <p className="mt-2 max-w-lg break-words font-kantumruy text-xs leading-7 text-[#756948] sm:text-sm">
+                                        {wedding.themeSettings.customLabels.heroSubtitle}
+                                    </p>
+                                )}
                                 <div className="my-5 flex items-center justify-center gap-3 text-[#ac873d]"><span className="h-px w-12 bg-gradient-to-r from-transparent to-current" /><Heart aria-hidden="true" className="h-3.5 w-3.5 fill-current" /><span className="h-px w-12 bg-gradient-to-l from-transparent to-current" /></div>
                                 <div className="m08-hero-couple grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
                                     <div className="min-w-0 text-center">
@@ -637,6 +687,8 @@ export default function GardenEditorial({ wedding, guestName, config }: Template
                             <h2 className="font-khmer-moul text-lg text-[#80632e] lg:text-2xl">សូមអរគុណ</h2>
                             <p className="mx-auto mt-3 max-w-md whitespace-pre-line break-words font-kantumruy text-sm leading-8 text-[#626957] lg:mt-5 lg:max-w-2xl lg:text-base lg:leading-9">{acknowledgment || "សូមថ្លែងអំណរគុណយ៉ាងជ្រាលជ្រៅ ចំពោះវត្តមាន និងពរជ័យរបស់លោកអ្នក។"}</p>
                             <CoupleNamesLine groom={wedding.groomName} bride={wedding.brideName} className="m05-font-name mt-5 text-lg text-[#755826] lg:mt-7 lg:text-2xl" />
+                            <SocialLinksSection wedding={wedding} />
+                            <MoneaFooterBrand className="mt-8" />
                         </footer>
                     </main>
                 </>

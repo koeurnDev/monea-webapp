@@ -6,9 +6,22 @@ import { ROLES } from "@/lib/constants"
 import { errorResponse } from "@/lib/api-utils"
 import { decrypt } from "@/lib/encryption"
 import { SystemGovernance, GOVERNANCE_ACTIONS } from "@/lib/governance"
+import { getActiveTemplates } from "../lib/template-licensing"
+
 const adminRouter = new Hono()
 
 const isAuthorizedAdmin = (user: any) => user && (user.role === ROLES.PLATFORM_OWNER || user.role === 'ADMIN' || user.role === 'SUPERADMIN' || user.role === ROLES.EVENT_MANAGER);
+
+async function hasExportAccess(wedding: any): Promise<boolean> {
+    if (!wedding || !wedding.id) return false;
+    try {
+        const activeTemplates = await getActiveTemplates(wedding.id);
+        return activeTemplates.length > 0;
+    } catch (error) {
+        console.error("[Export Access] Error checking template licenses:", error);
+        return false;
+    }
+}
 
 function escapeCSV(val: any) {
     if (typeof val !== 'string') return val;
@@ -688,13 +701,14 @@ adminRouter.get('/export/guests', async (c) => {
         if (user.role !== ROLES.PLATFORM_OWNER) {
             const wedding = await prisma.wedding.findFirst({
                 where: { id: weddingId, userId: user.userId },
-                select: { id: true, userId: true, packageType: true }
+                select: { id: true, userId: true }
             });
             if (!wedding) return c.text("Unauthorized access to this wedding", 403);
 
-            // SECURITY: Enforce Premium/Pro for Export
-            if (wedding.packageType !== "PREMIUM" && wedding.packageType !== "PRO") {
-                return c.text("Export feature requires a PRO or PREMIUM package", 403);
+            // Check template license access instead of package type
+            const hasAccess = await hasExportAccess(wedding);
+            if (!hasAccess) {
+                return c.text("Export feature requires an active template license. Please purchase a template to enable export.", 403);
             }
         }
 
@@ -746,13 +760,14 @@ adminRouter.get('/export/gifts', async (c) => {
         if (user.role !== ROLES.PLATFORM_OWNER) {
             const wedding = await prisma.wedding.findFirst({
                 where: { id: weddingId, userId: user.userId },
-                select: { id: true, userId: true, packageType: true }
+                select: { id: true, userId: true }
             });
             if (!wedding) return c.text("Unauthorized access to this wedding", 403);
 
-            // SECURITY: Enforce Premium/Pro for Export
-            if (wedding.packageType !== "PREMIUM" && wedding.packageType !== "PRO") {
-                return c.text("Export feature requires a PRO or PREMIUM package", 403);
+            // Check template license access instead of package type
+            const hasAccess = await hasExportAccess(wedding);
+            if (!hasAccess) {
+                return c.text("Export feature requires an active template license. Please purchase a template to enable export.", 403);
             }
         }
 

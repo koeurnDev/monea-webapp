@@ -9,7 +9,7 @@ import { getTemplateConfig, getTemplatesForEventType } from "@/components/templa
 import { DEFAULT_WEDDING } from "@/data/wedding";
 import { createSerialTaskQueue } from "@/lib/serial-task-queue";
 import { normalizeWeddingActivities } from "@/lib/wedding-activities";
-import { assignUploadedPhotosToSlots, migrateWeddingPhotoSlots, swapWeddingPhotoSlots, WEDDING_PHOTO_LAYOUTS } from "@/lib/wedding-photo-layout";
+import { appendUploadedPhotosToGallery, migrateWeddingPhotoSlots, swapWeddingPhotoSlots, WEDDING_PHOTO_LAYOUTS } from "@/lib/wedding-photo-layout";
 import {
     DEFAULT_WEDDING_ACTIVITIES,
     getDefaultActivitiesForEventType,
@@ -78,6 +78,15 @@ export const STEPS = [
     { id: 4 },
     { id: 5 }
 ];
+
+// Defensive: backend template/version save expects a valid `templateId`.
+// Some older/partial wedding records can temporarily contain `templateId: null/undefined/""`
+// while the UI hydrates; this would otherwise trigger a 400 "Unknown template".
+const normalizeTemplateId = (value: unknown, fallback: string): string => {
+    if (typeof value !== "string") return fallback;
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : fallback;
+};
 
 function decodeHtmlEntities(str: any): any {
     if (typeof str !== 'string') return str;
@@ -164,6 +173,10 @@ export function useDesignWizard() {
     const idFromUrl = searchParams.get('id');
     const templateIdFromUrl = searchParams.get('templateId');
 
+    // Admin template preview mode
+    const templatePreviewId = searchParams.get('templatePreview');
+    const isTemplatePreviewMode = !!templatePreviewId;
+
     // Refs & Hooks
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const {
@@ -181,9 +194,79 @@ export function useDesignWizard() {
         setMounted(true);
     }, []);
 
+    // Load an existing demo for this template, or start with editable defaults.
+    useEffect(() => {
+        if (!isTemplatePreviewMode || !templatePreviewId) return;
+        let cancelled = false;
+        const templateConfig = getTemplateConfig(templatePreviewId);
+        const defaultWedding: WeddingData = {
+            ...getEditorDefaults(isPlatformAdmin),
+            id: `template-preview-${templatePreviewId}`,
+            templateId: templatePreviewId,
+            eventType: templateConfig?.eventType === "anniversary" ? "anniversary" : "wedding",
+            groomName: "Sample Groom",
+            brideName: "Sample Bride",
+        };
+
+        isLoadedRef.current = false;
+        lastSavedSnapshotRef.current = null;
+        setWedding(null);
+        setLoading(true);
+
+        const loadTemplatePreview = async () => {
+            let loadedWedding = defaultWedding;
+            try {
+                const response = await moneaClient.get<{
+                    data?: { previewData?: Partial<WeddingData> };
+                }>(`/api/template-preview/${encodeURIComponent(templatePreviewId)}`, { cache: "no-store" });
+                if (response.error) {
+                    console.error("[Template Preview] Could not load saved demo:", response.error);
+                } else {
+                    const previewData = response.data?.data?.previewData;
+                    if (previewData && typeof previewData === "object" && !Array.isArray(previewData)) {
+                        loadedWedding = {
+                            ...defaultWedding,
+                            ...previewData,
+                            id: defaultWedding.id,
+                            templateId: templatePreviewId,
+                            eventType: previewData.eventType === "anniversary" || previewData.eventType === "wedding"
+                                ? previewData.eventType
+                                : defaultWedding.eventType,
+                            themeSettings: {
+                                ...(defaultWedding.themeSettings || {}),
+                                ...(previewData.themeSettings || {}),
+                            },
+                            galleryItems: Array.isArray(previewData.galleryItems)
+                                ? previewData.galleryItems
+                                : defaultWedding.galleryItems,
+                            activities: Array.isArray(previewData.activities)
+                                ? normalizeWeddingActivities(previewData.activities)
+                                : defaultWedding.activities,
+                        };
+                    }
+                }
+            } catch (error) {
+                console.error("[Template Preview] Could not load saved demo:", error);
+            }
+
+            if (cancelled) return;
+            setWedding(loadedWedding);
+            lastSavedSnapshotRef.current = getPayloadSnapshot(loadedWedding);
+            isLoadedRef.current = true;
+            setLoading(false);
+        };
+
+        void loadTemplatePreview();
+        return () => {
+            cancelled = true;
+        };
+    }, [isTemplatePreviewMode, templatePreviewId, isPlatformAdmin]);
+
     // --- Data Fetching (SWR) ---
-    const apiUrl = idFromUrl ? `/api/wedding?id=${idFromUrl}&full=true` : "/api/wedding?full=true";
-    const { data: swrWedding, error: swrError, mutate } = useSWR(apiUrl, fetcher, {
+    // Skip SWR fetching for template preview mode
+    const shouldFetch = !isTemplatePreviewMode;
+    const apiUrl = shouldFetch && idFromUrl ? `/api/wedding?id=${idFromUrl}&full=true` : (shouldFetch ? "/api/wedding?full=true" : null);
+    const { data: swrWedding, error: swrError, mutate } = useSWR(shouldFetch ? apiUrl : null, fetcher, {
         revalidateOnFocus: false,
         dedupingInterval: 10000,
         shouldRetryOnError: false,
@@ -325,7 +408,8 @@ export function useDesignWizard() {
         const data = manualData || weddingRef.current;
         if (!data) return false;
 
-        if (!silent && !data.themeSettings?.mapLink?.trim() && !data.mapUrl?.trim()) {
+        // For template preview mode, always skip map validation
+        if (!silent && !isTemplatePreviewMode && !data.themeSettings?.mapLink?.trim() && !data.mapUrl?.trim()) {
             setSaveToast("map-link-required");
             setTimeout(() => setSaveToast(null), 3000);
             return false;
@@ -334,8 +418,8 @@ export function useDesignWizard() {
         const payloadSnapshot = getPayloadSnapshot(data);
         if (lastSavedSnapshotRef.current === payloadSnapshot) return true;
 
-        // Validation (only skip if silent/auto-save)
-        if (!silent && (
+        // Validation (only skip if silent/auto-save, or in template preview mode)
+        if (!silent && !isTemplatePreviewMode && (
             !data.eventType ||
             !data.groomName?.trim() ||
             !data.brideName?.trim() ||
@@ -349,6 +433,45 @@ export function useDesignWizard() {
 
         if (!silent) setLoading(true);
         try {
+            // Template preview mode: save to template preview endpoint
+            if (isTemplatePreviewMode && templatePreviewId) {
+                const previewPayload = {
+                    templateId: templatePreviewId,
+                    groomName: data.groomName,
+                    brideName: data.brideName,
+                    date: data.date,
+                    location: data.location,
+                    themeSettings: data.themeSettings,
+                    galleryItems: data.galleryItems,
+                    activities: data.activities?.filter((item: any) => item.title?.trim()).map((item: any) => ({
+                        title: item.title.trim(),
+                        time: item.time || "",
+                        description: item.description || "",
+                        icon: item.icon || null,
+                        publicId: item.publicId || null,
+                        order: item.order || 0
+                    })),
+                    eventType: data.eventType
+                };
+
+                const res = await moneaClient.post<any>(`/api/admin/template-preview/${templatePreviewId}`, {
+                    previewData: previewPayload,
+                });
+
+                if (res.status === 200 && res.data) {
+                    lastSavedSnapshotRef.current = payloadSnapshot;
+                    setLastSavedAt(new Date());
+                    if (!silent) {
+                        setSaveToast("success");
+                        setTimeout(() => setSaveToast(null), 2000);
+                    }
+                    return true;
+                } else {
+                    throw new Error(res.error || "Failed to save template preview");
+                }
+            }
+
+            // Normal wedding save
             const payload = {
                 weddingId: data.id || undefined,
                 templateId: data.templateId || "modern-minimal",
@@ -409,7 +532,7 @@ export function useDesignWizard() {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [mutate]);
+    }, [isTemplatePreviewMode, templatePreviewId, mutate]);
 
     const saveQueueRef = useRef(createSerialTaskQueue());
     const saveChanges = useCallback((manualData?: WeddingData, options: { silent?: boolean } = {}): Promise<boolean> => {
@@ -434,7 +557,11 @@ export function useDesignWizard() {
     // --- Core Update Functions ---
     const deleteCloudinaryAsset = useCallback(async (publicId: string, resourceType: "image" | "video" = "image") => {
         try {
-            await moneaClient.post('/api/cloudinary/delete', { public_id: publicId, resource_type: resourceType });
+            if (publicId.startsWith("r2:")) {
+                await moneaClient.post('/api/r2/delete', { publicId });
+            } else {
+                await moneaClient.post('/api/cloudinary/delete', { public_id: publicId, resource_type: resourceType });
+            }
         } catch (error) {
             console.error("Error deleting asset:", error);
         }
@@ -644,12 +771,9 @@ export function useDesignWizard() {
 
         const newItems = [...(currentWedding.galleryItems || [])];
         const newTheme = { ...(currentWedding.themeSettings || {}) };
-        let replacedPublicId: string | undefined;
 
         if (typeof index === 'number') {
             while (newItems.length <= index) newItems.push({ url: "", type: "IMAGE" });
-            const oldItem = newItems[index];
-            if (oldItem?.publicId && oldItem.publicId !== publicId) replacedPublicId = oldItem.publicId;
             newItems[index] = { url, publicId, type };
             newTheme.hiddenPhotoSlots = (newTheme.hiddenPhotoSlots || []).filter((slot) => slot !== index);
             if (index === 0) {
@@ -670,9 +794,8 @@ export function useDesignWizard() {
         setWedding(updated);
         mutate(updated, false);
         const saved = await saveChanges(updated, { silent: true });
-        if (saved && replacedPublicId) await deleteCloudinaryAsset(replacedPublicId);
         return saved;
-    }, [mutate, deleteCloudinaryAsset, saveChanges]);
+    }, [mutate, saveChanges]);
 
     const removeGalleryItem = useCallback((index: number) => {
         setWedding((prev) => {
@@ -680,7 +803,6 @@ export function useDesignWizard() {
             const layout = TEMPLATE_LAYOUTS[prev.templateId];
             const itemToDelete = prev.galleryItems[index];
             const newTheme = { ...(prev.themeSettings || {}) };
-            if (itemToDelete?.publicId) deleteCloudinaryAsset(itemToDelete.publicId);
             if (index < layout.slots) {
                 newTheme.hiddenPhotoSlots = (newTheme.hiddenPhotoSlots || []).filter((slot) => slot !== index);
             } else {
@@ -705,7 +827,7 @@ export function useDesignWizard() {
             saveChanges(updated, { silent: true });
             return updated;
         });
-    }, [mutate, deleteCloudinaryAsset, saveChanges]);
+    }, [mutate, saveChanges]);
 
     const moveGalleryPhoto = useCallback(async (fromIndex: number, toIndex: number) => {
         const currentWedding = weddingRef.current;
@@ -739,7 +861,7 @@ export function useDesignWizard() {
 
         const uploadedPhotos = uploadedItems.filter((item) => item.type?.toUpperCase() !== "VIDEO");
         if (uploadedPhotos.length === 0) return false;
-        const galleryItems = assignUploadedPhotosToSlots(
+        const galleryItems = appendUploadedPhotosToGallery(
             currentWedding.galleryItems || [],
             uploadedPhotos.map((item) => ({
                 url: item.url,
@@ -748,6 +870,7 @@ export function useDesignWizard() {
             })),
             currentWedding.templateId,
         );
+        if (galleryItems.length === currentWedding.galleryItems.length) return false;
         const coverPhoto = galleryItems[0];
         const themeSettings = coverPhoto?.url
             ? {
@@ -786,7 +909,7 @@ export function useDesignWizard() {
         } finally {
             setFetchingVersions(false);
         }
-    }, [wedding?.id]);
+    }, [wedding?.id, wedding?.templateId, newVersionTitle]);
 
     const handleSaveVersion = useCallback(async () => {
         if (!wedding?.id || !newVersionTitle) return;
@@ -795,8 +918,16 @@ export function useDesignWizard() {
             const res = await fetch("/api/templates/versions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ weddingId: wedding.id, versionName: newVersionTitle, description: "Saved from editor" })
+                body: JSON.stringify({
+                    weddingId: wedding.id,
+                    versionName: newVersionTitle,
+                    description: "Saved from editor",
+                    // Backend validates templateId against known templates.
+                    // During hydration some weddings may temporarily have an empty templateId.
+                    templateId: normalizeTemplateId(wedding?.templateId, DEFAULT_WEDDING.templateId ?? "blossom-romance"),
+                }),
             });
+
             if (res.ok) {
                 const newVer = await res.json();
                 setTemplateVersions(prev => [newVer, ...prev]);
@@ -809,7 +940,7 @@ export function useDesignWizard() {
         } finally {
             setIsSavingVersion(false);
         }
-    }, [wedding?.id, newVersionTitle]);
+    }, [wedding?.id, wedding?.templateId, newVersionTitle]);
 
     const handleRollback = useCallback(async (versionId: string) => {
         setRollbackConfirm({ open: true, versionId });
@@ -893,6 +1024,6 @@ export function useDesignWizard() {
         updateTemplate, updateEventType, addGalleryItem, removeGalleryItem,
         handleGalleryDirectUpload, moveGalleryPhoto, saveChanges, fetchVersions, handleSaveVersion,
         handleRollback, confirmRollback, handleDeleteVersion, confirmDeleteVersion,
-        nextStep, prevStep, isDirty, lastSavedAt
+        nextStep, prevStep, isDirty, lastSavedAt, isTemplatePreviewMode
     };
 }

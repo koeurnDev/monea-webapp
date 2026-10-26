@@ -4,6 +4,8 @@ import { Heart, Sparkles } from 'lucide-react';
 import type { WeddingData } from '../types';
 import { getWeddingSectionPhoto } from "../shared/weddingPhotos";
 import { CoupleNamesLine } from "../shared/OneLineName";
+import { MoneaFooterBrand } from "../shared/MoneaFooterBrand";
+import { SocialLinksSection } from "../shared/SocialLinksSection";
 
 export const AnniversaryThankYou = ({ wedding }: { wedding: WeddingData }) => {
     const thankYouPhoto = getWeddingSectionPhoto(wedding, "thankYou")?.url;
@@ -72,10 +74,8 @@ export const AnniversaryThankYou = ({ wedding }: { wedding: WeddingData }) => {
                     </p>
                 </div>
 
-                {/* Footer Brand */}
-                <div className="pt-8 text-[11px] text-amber-200/40 tracking-widest uppercase font-mono">
-                    Designed with MONEO
-                </div>
+                <SocialLinksSection wedding={wedding} />
+                <MoneaFooterBrand className="rounded-2xl bg-[#f7f1ea] px-4 py-2" />
             </div>
         </section>
     );

@@ -1,538 +1,612 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
 import {
-    CreditCard,
     ArrowLeft,
-    CheckCircle2,
-    XCircle,
-    User,
-    Clock,
-    Package,
-    Loader2,
-    DollarSign,
-    ShieldCheck,
-    ExternalLink,
-    RefreshCcw,
-    Zap,
-    TrendingUp,
-    Calendar,
-    Image as ImageIcon,
-    Eye,
     Check,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    DollarSign,
+    FileCheck,
+    History,
+    Loader2,
+    RefreshCcw,
+    Search,
+    ShieldCheck,
+    ShoppingBag,
     X,
-    Filter,
-    FileCheck
 } from "lucide-react";
-import { Link } from 'react-router-dom';
-import { cn } from "@/lib/utils";
-import { m, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { moneaClient } from "@/lib/api-client";
-import { useTranslation } from "@/i18n/LanguageProvider";
 import { useToast } from "@/components/ui/Toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useTranslation } from "@/i18n/LanguageProvider";
+import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+
+type SalesFilter = "ALL" | "ACTIVE" | "INACTIVE" | "EXPIRED" | "PENDING_REVIEW" | "PENDING_PAYMENT";
+type LicenseStatus = "ACTIVE" | "INACTIVE" | "EXPIRED";
+type ReceiptStatus = "PENDING" | "APPROVED" | "REJECTED" | null;
+
+interface TemplateSale {
+    id: string;
+    weddingId: string;
+    templateId: string;
+    status: LicenseStatus;
+    amount: number | string;
+    currency: "USD" | "KHR";
+    paymentOrderId: string | null;
+    bakongTrxId: string | null;
+    receiptUrl: string | null;
+    receiptReference: string | null;
+    receiptReviewStatus: ReceiptStatus;
+    receiptSubmittedAt: string | null;
+    purchaseDate: string;
+    expiresAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    groomName: string;
+    brideName: string;
+    user?: { name?: string; email?: string } | null;
+}
+
+interface SalesResponse {
+    licenses: TemplateSale[];
+    summary: {
+        totalSales: number;
+        active: number;
+        inactive: number;
+        expired: number;
+        pending: number;
+        pendingPayment: number;
+        revenueUSD: number;
+        revenueKHR: number;
+    };
+    pagination: { page: number; pageSize: number; total: number; pages: number };
+}
+
+interface LicenseHistoryEntry {
+    id: string;
+    action: string;
+    details: Record<string, unknown>;
+    actorId: string;
+    actorName: string;
+    createdAt: string;
+}
+
+const FILTERS: { id: SalesFilter; labelKm: string; labelEn: string }[] = [
+    { id: "ALL", labelKm: "ទាំងអស់", labelEn: "All sales" },
+    { id: "ACTIVE", labelKm: "កំពុងប្រើ", labelEn: "Active" },
+    { id: "PENDING_REVIEW", labelKm: "រង់ចាំពិនិត្យ", labelEn: "Pending review" },
+    { id: "PENDING_PAYMENT", labelKm: "រង់ចាំបង់ប្រាក់", labelEn: "Awaiting payment" },
+    { id: "INACTIVE", labelKm: "បានបិទ", labelEn: "Inactive" },
+    { id: "EXPIRED", labelKm: "ផុតកំណត់", labelEn: "Expired" },
+];
+
+function formatDate(value: string | null, locale: string) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleString(locale === "km" ? "km-KH" : "en-US", {
+        timeZone: "Asia/Phnom_Penh",
+        dateStyle: "medium",
+        timeStyle: "short",
+    });
+}
+
+function formatAmount(amount: number | string, currency: "USD" | "KHR") {
+    const value = Number(amount);
+    if (!Number.isFinite(value)) return "—";
+    return currency === "KHR"
+        ? `${value.toLocaleString("en-US")} ៛`
+        : `$${value.toFixed(2)}`;
+}
 
 export default function MasterPaymentsPage() {
-    const { t, locale } = useTranslation();
+    const { locale } = useTranslation();
     const { showToast } = useToast();
-    const isKm = locale === 'km';
-
-    const [weddings, setWeddings] = useState<any[]>([]);
-    const [pricing, setPricing] = useState({ standard: 9, pro: 19 });
+    const isKm = locale === "km";
+    const [sales, setSales] = useState<TemplateSale[]>([]);
+    const [summary, setSummary] = useState<SalesResponse["summary"]>({
+        totalSales: 0,
+        active: 0,
+        inactive: 0,
+        expired: 0,
+        pending: 0,
+        pendingPayment: 0,
+        revenueUSD: 0,
+        revenueKHR: 0,
+    });
+    const [page, setPage] = useState(1);
+    const [pages, setPages] = useState(1);
+    const [filter, setFilter] = useState<SalesFilter>("PENDING_REVIEW");
+    const [searchInput, setSearchInput] = useState("");
+    const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [processing, setProcessing] = useState<string | null>(null);
-    const [selectedTab, setSelectedTab] = useState<'pending' | 'paid' | 'rejected' | 'all'>('pending');
-    
-    // Receipt Modal State
-    const [viewingReceipt, setViewingReceipt] = useState<{
-        imageUrl: string;
-        coupleName: string;
-        userEmail: string;
-        packageType: string;
-        amount: number;
-        date: string;
-        ref: string;
-    } | null>(null);
-    const [pendingApproval, setPendingApproval] = useState<{
-        weddingId: string;
-        packageType: "PRO" | "PREMIUM";
-        amount: number;
-    } | null>(null);
+    const [viewingReceipt, setViewingReceipt] = useState<TemplateSale | null>(null);
+    const [viewingHistory, setViewingHistory] = useState<TemplateSale | null>(null);
+    const [history, setHistory] = useState<LicenseHistoryEntry[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyError, setHistoryError] = useState<string | null>(null);
 
-    const loadData = useCallback(async () => {
+    const loadSales = useCallback(async () => {
         setLoading(true);
+        setLoadError(null);
         try {
-            const res = await moneaClient.get("/api/admin/master/payments") as any;
-            if (res.status === 401) return;
-            if (res.error || !res.data) throw new Error(res.error || "Failed");
-            
-            setWeddings(res.data.weddings || []);
-            setPricing(res.data.pricing || { standard: 9, pro: 19 });
+            const query = new URLSearchParams({
+                page: String(page),
+                status: filter,
+                search,
+            });
+            const response = await moneaClient.get<SalesResponse>(
+                `/api/admin/master/template-payments?${query.toString()}`,
+                { cache: "no-store" },
+            );
+            if (response.error || !response.data) {
+                throw new Error(response.error || "Could not load template sales");
+            }
+            setSales(response.data.licenses);
+            setSummary(response.data.summary);
+            setPages(Math.max(response.data.pagination.pages, 1));
         } catch (error) {
+            const message = error instanceof Error ? error.message : "Could not load template sales";
+            setLoadError(message);
             showToast({
-                title: isKm ? "បរាជ័យក្នុងការទាញយកទិន្នន័យ" : "Sync Failed",
-                description: isKm ? "មិនអាចភ្ជាប់ទៅកាន់ប្រព័ន្ធបានទេ។" : "Could not connect to verification engine.",
-                type: "error"
+                title: isKm ? "មិនអាចទាញយកការលក់ Template" : "Could not load template sales",
+                description: message,
+                type: "error",
             });
         } finally {
             setLoading(false);
         }
-    }, [isKm, showToast]);
+    }, [filter, isKm, page, search, showToast]);
 
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        void loadSales();
+    }, [loadSales]);
 
-    const handleUpdatePayment = async (weddingId: string, status: 'PAID' | 'REJECTED', packageType?: string): Promise<boolean> => {
-        setProcessing(weddingId);
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setPage(1);
+            setSearch(searchInput.trim());
+        }, 300);
+        return () => window.clearTimeout(timer);
+    }, [searchInput]);
+
+    const loadHistory = async (sale: TemplateSale) => {
+        setViewingHistory(sale);
+        setHistory([]);
+        setHistoryError(null);
+        setHistoryLoading(true);
         try {
-            const res = await moneaClient.post("/api/admin/master/payments", { 
-                weddingId, 
-                status, 
-                packageType 
-            });
-            
-            if (!res.error) {
-                showToast({
-                    title: status === 'PAID' ? "បានអនុម័ត និងដំឡើងកញ្ចប់ជោគជ័យ!" : (status === 'REJECTED' ? "បានបដិសេធវិក្កយបត្រ" : "បានផ្លាស់ប្តូរស្ថានភាព"),
-                    description: status === 'PAID' ? `កញ្ចប់សេវាត្រូវបានដំឡើងទៅជា ${packageType || 'PRO'} រួចរាល់។` : undefined,
-                    type: status === 'PAID' ? "success" : "info"
-                });
-                
-                // Update local state directly
-                setWeddings(prev => prev.map(w => {
-                    if (w.id === weddingId) {
-                        return {
-                            ...w,
-                            paymentStatus: status,
-                            packageType: status === 'REJECTED' ? 'FREE' : (packageType || w.packageType),
-                            status: 'ACTIVE',
-                            paymentInfo: status === 'REJECTED' ? null : w.paymentInfo
-                        };
-                    }
-                    return w;
-                }));
-                return true;
-            } else {
-                showToast({ title: "បរាជ័យ", description: res.error, type: "error" });
-                return false;
+            const response = await moneaClient.get<{ history: LicenseHistoryEntry[] }>(
+                `/api/admin/master/template-payments/${encodeURIComponent(sale.id)}/history`,
+                { cache: "no-store" },
+            );
+            if (response.error || !response.data) {
+                throw new Error(response.error || "Could not load license history");
             }
+            setHistory(response.data.history || []);
         } catch (error) {
-            showToast({ title: "Error", description: "Operation failed", type: "error" });
-            return false;
+            const message = error instanceof Error ? error.message : "Could not load license history";
+            setHistoryError(message);
+            showToast({
+                title: isKm ? "មិនអាចទាញយកប្រវត្តិ License" : "Could not load license history",
+                description: message,
+                type: "error",
+            });
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
+    const updateSale = async (
+        sale: TemplateSale,
+        action: { decision: "APPROVED" | "REJECTED" } | { licenseAction: "ACTIVATE" | "DEACTIVATE" },
+    ) => {
+        setProcessing(sale.id);
+        try {
+            const response = await moneaClient.patch<{ success?: boolean }>(
+                `/api/admin/master/template-payments/${encodeURIComponent(sale.id)}`,
+                action,
+            );
+            if (response.error || !response.data?.success) {
+                throw new Error(response.error || "Could not update template sale");
+            }
+            const isReceiptDecision = "decision" in action;
+            const actionName = isReceiptDecision ? action.decision : action.licenseAction;
+            showToast({
+                title: isReceiptDecision
+                    ? (actionName === "APPROVED" ? "បានអនុម័តការទិញ Template" : "បានបដិសេធបង្កាន់ដៃ Template")
+                    : (actionName === "ACTIVATE" ? "បានបើក Template license" : "បានបិទ Template license"),
+                description: sale.templateId,
+                type: actionName === "REJECTED" || actionName === "DEACTIVATE" ? "info" : "success",
+            });
+            setViewingReceipt(null);
+            await loadSales();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Could not update template sale";
+            console.error("[Admin Template Sales] Update failed:", error);
+            showToast({ title: "បរាជ័យ", description: message, type: "error" });
         } finally {
             setProcessing(null);
         }
     };
 
-    // Filter weddings by tab
-    const pendingList = weddings.filter(w => w.paymentStatus === 'AWAITING_VERIFICATION' || w.paymentStatus === 'PENDING');
-    const paidList = weddings.filter(w => w.paymentStatus === 'PAID');
-    const rejectedList = weddings.filter(w => w.paymentStatus === 'REJECTED');
+    const statusText = (sale: TemplateSale) => {
+        if (sale.receiptReviewStatus === "PENDING") return isKm ? "រង់ចាំពិនិត្យបង្កាន់ដៃ" : "Receipt pending review";
+        if (sale.status === "INACTIVE" && sale.paymentOrderId && !sale.bakongTrxId && !sale.receiptReviewStatus) {
+            return isKm ? "រង់ចាំការបង់ប្រាក់" : "Awaiting payment";
+        }
+        if (sale.status === "ACTIVE") return isKm ? "សកម្ម" : "Active";
+        if (sale.status === "EXPIRED") return isKm ? "ផុតកំណត់" : "Expired";
+        if (sale.receiptReviewStatus === "REJECTED") return isKm ? "បង្កាន់ដៃត្រូវបានបដិសេធ" : "Receipt rejected";
+        return isKm ? "បានបិទ" : "Inactive";
+    };
 
-    const displayedWeddings = 
-        selectedTab === 'pending' ? pendingList :
-        selectedTab === 'paid' ? paidList :
-        selectedTab === 'rejected' ? rejectedList :
-        weddings;
-
-    const totalRevenue = paidList.reduce((acc, w) => {
-        const cost = w.packageType === 'PREMIUM' ? pricing.pro : (w.packageType === 'PRO' ? pricing.standard : 0);
-        return acc + cost;
-    }, 0);
+    const statusClass = (sale: TemplateSale) => {
+        if (sale.receiptReviewStatus === "PENDING"
+            || (sale.status === "INACTIVE" && !!sale.paymentOrderId && !sale.bakongTrxId && !sale.receiptReviewStatus)) {
+            return "bg-amber-500/10 text-amber-700 dark:text-amber-300";
+        }
+        if (sale.status === "ACTIVE") return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+        if (sale.status === "EXPIRED") return "bg-muted text-muted-foreground";
+        return "bg-rose-500/10 text-rose-700 dark:text-rose-300";
+    };
+    const filterCount = (id: SalesFilter) => {
+        if (id === "ALL") return summary.totalSales;
+        if (id === "ACTIVE") return summary.active;
+        if (id === "INACTIVE") return summary.inactive;
+        if (id === "EXPIRED") return summary.expired;
+        if (id === "PENDING_REVIEW") return summary.pending;
+        return summary.pendingPayment;
+    };
 
     return (
-        <div className="w-full min-h-full font-kantumruy pb-16">
-            {/* Top Bar Header */}
-            <div className="bg-card/80 backdrop-blur-md border-b border-border/80 sticky top-0 z-20">
-                <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-2 px-3 py-3 sm:h-20 sm:px-8 sm:py-0">
+        <div className="min-h-full w-full space-y-5 pb-16 font-kantumruy">
+            <header className="sticky top-0 z-20 border-b border-border/80 bg-card/90 backdrop-blur-md">
+                <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-3 px-3 py-3 sm:h-20 sm:px-8 sm:py-0">
                     <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                         <Link to="/admin/master">
-                            <Button variant="ghost" size="icon" aria-label={isKm ? "ត្រឡប់ទៅទំព័រគ្រប់គ្រង" : "Back to admin"} className="h-10 w-10 shrink-0 rounded-xl border border-border bg-card shadow-xs hover:bg-muted">
-                                <ArrowLeft size={17} className="text-muted-foreground" />
+                            <Button variant="ghost" size="icon" aria-label={isKm ? "ត្រឡប់ទៅទំព័រគ្រប់គ្រង" : "Back to admin"} className="h-10 w-10 shrink-0 rounded-xl border border-border bg-card shadow-xs">
+                                <ArrowLeft size={17} />
                             </Button>
                         </Link>
                         <div className="min-w-0">
-                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-teal-800 dark:text-teal-300 sm:text-xs">
+                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-teal-800 dark:text-teal-300">
                                 <ShieldCheck size={13} />
-                                <span className="truncate">Verification Hub</span>
+                                <span>Template Sales</span>
                             </div>
-                            <h1 className="line-clamp-2 text-sm font-bold leading-snug text-foreground sm:text-xl">
-                                {isKm ? "មជ្ឈមណ្ឌលផ្ទៀងផ្ទាត់ការបង់ប្រាក់ & វិក្កយបត្រ" : "Payment & Slip Verification"}
+                            <h1 className="truncate text-base font-bold text-foreground sm:text-xl">
+                                {isKm ? "គ្រប់គ្រងការលក់ Template" : "Manage template sales"}
                             </h1>
                         </div>
                     </div>
-
-                    <div className="shrink-0">
-                        <Button
-                            onClick={loadData}
-                            variant="outline"
-                            disabled={loading}
-                            aria-label={isKm ? "ផ្ទុកឡើងវិញ" : "Refresh"}
-                            className="h-10 w-10 rounded-xl border border-border bg-card p-0 text-xs font-bold shadow-xs sm:w-auto sm:px-4 sm:flex sm:items-center sm:gap-2"
-                        >
+                    <div className="flex shrink-0 gap-2">
+                        <Link to="/admin/master/template-pricing">
+                            <Button variant="outline" className="h-10 gap-2 rounded-xl px-3 text-xs font-bold sm:px-4">
+                                <DollarSign size={15} />
+                                <span>{isKm ? "កែតម្លៃ" : "Manage prices"}</span>
+                            </Button>
+                        </Link>
+                        <Button onClick={() => void loadSales()} variant="outline" disabled={loading} aria-label={isKm ? "ផ្ទុកឡើងវិញ" : "Refresh"} className="h-10 w-10 rounded-xl p-0 sm:w-auto sm:px-4">
                             <RefreshCcw size={14} className={loading ? "animate-spin" : ""} />
-                            <span className="hidden sm:inline">{isKm ? "ផ្ទុកឡើងវិញ" : "Refresh"}</span>
+                            <span className="hidden sm:inline sm:ml-2">{isKm ? "ផ្ទុកឡើងវិញ" : "Refresh"}</span>
                         </Button>
                     </div>
                 </div>
-            </div>
+            </header>
 
-            <main className="max-w-[1400px] mx-auto space-y-4 p-3 sm:space-y-6 sm:p-8">
-                {/* Stats Overview */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-                    <Card className="bg-card border border-border/80 rounded-2xl shadow-xs">
-                        <CardContent className="flex items-center justify-between gap-3 p-4 sm:p-5">
-                            <div className="min-w-0">
-                                <p className="break-words text-xs font-bold leading-snug text-muted-foreground">{isKm ? "រង់ចាំការផ្ទៀងផ្ទាត់" : "Pending Slips"}</p>
-                                <h3 className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">{pendingList.length}</h3>
-                            </div>
-                            <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
-                                <Clock size={24} />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-card border border-border/80 rounded-2xl shadow-xs">
-                        <CardContent className="flex items-center justify-between gap-3 p-4 sm:p-5">
-                            <div className="min-w-0">
-                                <p className="break-words text-xs font-bold leading-snug text-muted-foreground">{isKm ? "បានអនុម័តរួចរាល់" : "Approved Payments"}</p>
-                                <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{paidList.length}</h3>
-                            </div>
-                            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
-                                <CheckCircle2 size={24} />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-card border border-border/80 rounded-2xl shadow-xs">
-                        <CardContent className="flex items-center justify-between gap-3 p-4 sm:p-5">
-                            <div className="min-w-0">
-                                <p className="break-words text-xs font-bold leading-snug text-muted-foreground">{isKm ? "ចំណូលសរុប (USD)" : "Estimated Revenue"}</p>
-                                <h3 className="text-2xl font-black text-foreground mt-1">${totalRevenue.toFixed(2)}</h3>
-                            </div>
-                            <div className="w-12 h-12 rounded-xl bg-teal-600/10 text-teal-800 dark:text-teal-300 flex items-center justify-center font-bold">
-                                <DollarSign size={24} />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Filter Tabs Bar */}
-                <div role="tablist" aria-label={isKm ? "ត្រងតាមស្ថានភាពការទូទាត់" : "Filter by payment status"} className="grid grid-cols-2 items-center gap-1.5 p-1.5 bg-muted/50 border border-border/80 rounded-2xl sm:flex sm:overflow-x-auto scrollbar-none">
+            <main className="mx-auto max-w-[1400px] space-y-5 px-3 sm:space-y-6 sm:px-8">
+                <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     {[
-                        { id: 'pending', label: "រង់ចាំការផ្ទៀងផ្ទាត់", count: pendingList.length, icon: Clock, color: "text-amber-500" },
-                        { id: 'paid', label: "បានអនុម័ត (Paid)", count: paidList.length, icon: CheckCircle2, color: "text-emerald-500" },
-                        { id: 'rejected', label: "បានបដិសេធ (Rejected)", count: rejectedList.length, icon: XCircle, color: "text-rose-500" },
-                        { id: 'all', label: "ទាំងអស់ (All)", count: weddings.length, icon: Filter, color: "text-muted-foreground" },
-                    ].map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = selectedTab === tab.id;
+                        { label: isKm ? "ការទិញសរុប" : "Total sales", value: summary.totalSales.toLocaleString(), icon: ShoppingBag, color: "text-teal-700 dark:text-teal-300" },
+                        { label: isKm ? "License សកម្ម" : "Active licenses", value: summary.active.toLocaleString(), icon: FileCheck, color: "text-emerald-600" },
+                        { label: isKm ? "រង់ចាំបង់/ពិនិត្យ" : "Awaiting payment/review", value: (summary.pending + summary.pendingPayment).toLocaleString(), icon: Clock, color: "text-amber-600" },
+                        { label: isKm ? "ចំណូលសរុបពី Template" : "Template sales revenue", value: `$${Number(summary.revenueUSD).toFixed(2)} · ${Number(summary.revenueKHR).toLocaleString("en-US")} ៛`, icon: DollarSign, color: "text-violet-600" },
+                    ].map((item) => {
+                        const Icon = item.icon;
                         return (
-                            <button
-                                key={tab.id}
-                                type="button"
-                                role="tab"
-                                aria-selected={isActive}
-                                onClick={() => setSelectedTab(tab.id as any)}
-                                className={cn(
-                                    "flex min-w-0 min-h-11 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold leading-tight transition-all select-none sm:min-h-0 sm:shrink-0 sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs",
-                                    isActive
-                                        ? "bg-card text-foreground shadow-xs border border-border/80 font-bold"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-                                )}
-                            >
-                                <Icon size={14} className={cn("shrink-0 sm:h-4 sm:w-4", tab.color)} />
-                                <span className="min-w-0 break-words">{tab.label}</span>
-                                <span className={cn(
-                                    "px-1.5 py-0.5 rounded-md text-xs font-black",
-                                    isActive ? "bg-muted text-foreground" : "bg-muted/70 text-muted-foreground"
-                                )}>
-                                    {tab.count}
-                                </span>
-                            </button>
+                            <Card key={item.label} className="border-border/80">
+                                <CardContent className="flex items-center justify-between gap-2 p-4">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-semibold text-muted-foreground">{item.label}</p>
+                                        <p className="mt-1 truncate text-lg font-black text-foreground">{item.value}</p>
+                                    </div>
+                                    <Icon size={20} className={cn("shrink-0", item.color)} />
+                                </CardContent>
+                            </Card>
                         );
                     })}
-                </div>
+                </section>
 
-                {/* Main List */}
-                {loading && weddings.length === 0 ? (
-                    <div className="py-24 flex flex-col items-center justify-center space-y-3">
-                        <Loader2 className="w-8 h-8 animate-spin text-teal-700 dark:text-teal-300" />
-                        <p className="text-xs font-bold text-muted-foreground">{isKm ? "កំពុងទាញយកទិន្នន័យ..." : "Loading requests..."}</p>
+                <section className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h2 className="text-base font-black text-foreground">{isKm ? "បញ្ជីការលក់ និង License" : "Sales and licenses"}</h2>
+                            <p className="text-xs text-muted-foreground">
+                                {isKm
+                                    ? "ពិនិត្យការទិញ Template, បង្កាន់ដៃ និងបើក/បិទសិទ្ធិប្រើប្រាស់។"
+                                    : "Review template purchases, receipts, and license access."}
+                            </p>
+                        </div>
+                        <span className="text-xs font-semibold text-muted-foreground">
+                            {isKm ? "សរុប" : "Total"}: {summary.totalSales.toLocaleString()}
+                        </span>
                     </div>
-                ) : displayedWeddings.length === 0 ? (
-                    <Card className="bg-card border border-border/80 rounded-2xl shadow-xs py-20 text-center">
-                        <CardContent className="flex flex-col items-center justify-center space-y-3">
-                            <div className="w-14 h-14 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground">
-                                <FileCheck size={26} />
-                            </div>
-                            <div className="space-y-1">
-                                <h3 className="text-base font-bold text-foreground">
-                                    {selectedTab === 'pending' ? "គ្មានសំណើដែលរង់ចាំផ្ទៀងផ្ទាត់ទេ" : "មិនមានទិន្នន័យនៅក្នុងបញ្ជីនេះទេ"}
-                                </h3>
-                                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                                    {selectedTab === 'pending' 
-                                        ? "នៅពេលអតិថិជនស្កេនបង់ប្រាក់ និងផ្ញើរូបភាពវិក្កយបត្រ សំណើនឹងបង្ហាញនៅត្រង់នេះដើម្បីឱ្យ Admin ពិនិត្យផ្ទៀងផ្ទាត់។"
-                                        : "ទិន្នន័យប្រតិបត្តិការនឹងបង្ហាញនៅទីនេះ។"}
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <div className="space-y-4">
-                        <AnimatePresence mode="popLayout">
-                            {displayedWeddings.map((w) => {
-                                const isPending = w.paymentStatus === 'AWAITING_VERIFICATION' || w.paymentStatus === 'PENDING';
-                                const isPaid = w.paymentStatus === 'PAID';
-                                const isRejected = w.paymentStatus === 'REJECTED';
-                                const amount = w.packageType === 'PREMIUM' ? pricing.pro : (w.packageType === 'PRO' ? pricing.standard : 0);
-                                const hasSlipImage = w.paymentInfo && (w.paymentInfo.startsWith('data:image') || w.paymentInfo.startsWith('http'));
 
-                                return (
-                                    <m.div
-                                        key={w.id}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        layout
-                                    >
-                                        <Card className={cn(
-                                            "bg-card border rounded-2xl shadow-xs overflow-hidden transition-all",
-                                            isPending ? "border-amber-400/60 dark:border-amber-500/40 bg-amber-500/[0.02]" : "border-border/80"
-                                        )}>
-                                            <CardContent className="p-6">
-                                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                                                    {/* Left: Couple & User Info */}
-                                                    <div className="space-y-3 flex-1 min-w-0">
-                                                        <div className="flex flex-wrap items-center gap-2.5">
-                                                            {/* Status Badge */}
-                                                            <span className={cn(
-                                                                "px-2.5 py-1 rounded-md text-xs font-black uppercase tracking-wider flex items-center gap-1",
-                                                                isPending ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-500/30 animate-pulse" :
-                                                                isPaid ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/30" :
-                                                                "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/30"
-                                                            )}>
-                                                                {isPending ? "⏳ រង់ចាំផ្ទៀងផ្ទាត់ (Pending Review)" : (isPaid ? "✅ បានអនុម័ត (Paid)" : "❌ បានបដិសេធ (Rejected)")}
-                                                            </span>
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            value={searchInput}
+                            onChange={(event) => setSearchInput(event.target.value)}
+                            placeholder={isKm
+                                ? "ស្វែងរកឈ្មោះ, Email, Template ឬ Order ID..."
+                                : "Search customer, email, template, or order ID..."}
+                            aria-label={isKm ? "ស្វែងរកការលក់ Template" : "Search template sales"}
+                            className={cn("h-11 rounded-xl pl-10", searchInput && "pr-11")}
+                        />
+                        {searchInput && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={isKm ? "សម្អាតការស្វែងរក" : "Clear search"}
+                                onClick={() => setSearchInput("")}
+                                className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 text-muted-foreground"
+                            >
+                                <X size={16} />
+                            </Button>
+                        )}
+                    </div>
 
-                                                            {/* Package Requested */}
-                                                            <span className={cn(
-                                                                "px-2.5 py-1 rounded-md text-xs font-black uppercase tracking-wider",
-                                                                w.packageType === 'PREMIUM' ? "bg-amber-500/10 text-amber-600 border border-amber-500/20" :
-                                                                w.packageType === 'PRO' ? "bg-blue-500/10 text-blue-600 border border-blue-500/20" :
-                                                                "bg-muted text-muted-foreground"
-                                                            )}>
-                                                                {w.packageType} PLAN (${amount})
-                                                            </span>
+                    <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border/70 bg-muted/40 p-2 sm:grid-cols-3 lg:grid-cols-6">
+                        {FILTERS.map((item) => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => { setPage(1); setFilter(item.id); }}
+                                aria-pressed={filter === item.id}
+                                className={cn(
+                                    "flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 text-left text-xs font-bold transition",
+                                    filter === item.id ? "bg-card text-foreground shadow-xs ring-1 ring-border" : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+                                )}
+                            >
+                                <span>{isKm ? item.labelKm : item.labelEn}</span>
+                                <span className={cn(
+                                    "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
+                                    item.id === "PENDING_REVIEW" && summary.pending > 0
+                                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                        : "bg-muted text-muted-foreground",
+                                )}>{filterCount(item.id)}</span>
+                            </button>
+                        ))}
+                    </div>
 
-                                                            <span className="text-xs text-muted-foreground font-mono">
-                                                                ID: {w.id.slice(0, 10)}
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Couple Name */}
-                                                        <div>
-                                                            <h3 className="text-lg font-bold text-foreground">
-                                                                {w.groomName} <span className="text-teal-700 dark:text-teal-300">&</span> {w.brideName}
-                                                            </h3>
-                                                            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
-                                                                <span className="flex items-center gap-1">
-                                                                    <User size={13} className="text-muted-foreground" />
-                                                                    <span className="font-medium text-foreground">{w.user?.name || "User"}</span>
-                                                                    <span>({w.user?.email})</span>
-                                                                </span>
-                                                                <span>•</span>
-                                                                <span className="flex items-center gap-1">
-                                                                    <Calendar size={13} />
-                                                                    <span>{new Date(w.createdAt).toLocaleDateString('km-KH', { timeZone: 'Asia/Phnom_Penh' })}</span>
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Slip or Ref Note */}
-                                                        {w.paymentHash && (
-                                                            <div className="text-xs font-mono bg-muted/40 p-2 rounded-lg border border-border/60 text-muted-foreground">
-                                                                <span className="font-bold text-foreground">Ref / TxID:</span> {w.paymentHash}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Center: Receipt Slip Preview Thumbnail */}
-                                                    <div className="flex items-center gap-4 shrink-0">
-                                                        {hasSlipImage ? (
-                                                            <div 
-                                                                onClick={() => setViewingReceipt({
-                                                                    imageUrl: w.paymentInfo,
-                                                                    coupleName: `${w.groomName} & ${w.brideName}`,
-                                                                    userEmail: w.user?.email,
-                                                                    packageType: w.packageType,
-                                                                    amount,
-                                                                    date: new Date(w.createdAt).toLocaleString('km-KH', { timeZone: 'Asia/Phnom_Penh' }),
-                                                                    ref: w.paymentHash || w.id
-                                                                })}
-                                                                className="relative group/slip cursor-pointer w-24 h-24 rounded-xl border-2 border-teal-600/30 overflow-hidden bg-muted hover:border-teal-600 transition-all shadow-xs"
-                                                            >
-                                                                <img 
-                                                                    src={w.paymentInfo} 
-                                                                    alt="Payment Slip Receipt" 
-                                                                    className="w-full h-full object-cover group-hover/slip:scale-105 transition-transform" 
-                                                                />
-                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/slip:opacity-100 flex flex-col items-center justify-center text-white transition-opacity">
-                                                                    <Eye size={20} />
-                                                                    <span className="text-xs font-black uppercase mt-1">មើលវិក្កយបត្រ</span>
-                                                                </div>
-                                                                <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[8px] font-bold">
-                                                                    SLIP 🧾
-                                                                </span>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="w-24 h-24 rounded-xl border border-dashed border-border bg-muted/30 flex flex-col items-center justify-center text-muted-foreground p-2 text-center">
-                                                                <ImageIcon size={20} className="text-muted-foreground/60 mb-1" />
-                                                                <span className="text-xs font-bold text-muted-foreground">គ្មានរូបភាព</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Right: Actions */}
-                                                    <div className="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0 justify-center">
-                                                        {isPending ? (
-                                                            <>
-                                                                <Button
-                                                                    onClick={() => {
-                                                                        if (w.packageType === "PRO" || w.packageType === "PREMIUM") {
-                                                                            setPendingApproval({
-                                                                                weddingId: w.id,
-                                                                                packageType: w.packageType,
-                                                                                amount,
-                                                                            });
-                                                                        }
-                                                                    }}
-                                                                    disabled={processing === w.id || (w.packageType !== "PRO" && w.packageType !== "PREMIUM")}
-                                                                    className="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs flex items-center gap-1.5"
-                                                                >
-                                                                    {processing === w.id ? (
-                                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                                    ) : (
-                                                                        <>
-                                                                            <Check size={16} />
-                                                                            <span>អនុម័ត & ដំឡើង ({w.packageType || 'PRO'})</span>
-                                                                        </>
-                                                                    )}
-                                                                </Button>
-                                                                <Button
-                                                                    onClick={() => handleUpdatePayment(w.id, 'REJECTED')}
-                                                                    disabled={processing === w.id}
-                                                                    variant="outline"
-                                                                    className="h-10 px-4 border-teal-600/25 text-teal-800 dark:text-teal-300 hover:bg-teal-600/10 rounded-xl font-bold text-xs flex items-center gap-1.5"
-                                                                >
-                                                                    <X size={15} />
-                                                                    <span>បដិសេធ (Reject)</span>
-                                                                </Button>
-                                                            </>
-                                                        ) : null}
-                                                    </div>
+                    {loadError ? (
+                        <Card><CardContent className="space-y-3 p-6 text-center">
+                            <p role="alert" className="text-sm font-semibold text-destructive">{loadError}</p>
+                            <Button variant="outline" onClick={() => void loadSales()}>{isKm ? "ព្យាយាមម្តងទៀត" : "Try again"}</Button>
+                        </CardContent></Card>
+                    ) : loading ? (
+                        <div className="flex justify-center py-20 text-muted-foreground"><Loader2 className="h-7 w-7 animate-spin" /></div>
+                    ) : sales.length === 0 ? (
+                        <Card><CardContent className="space-y-2 p-10 text-center">
+                            <ShoppingBag className="mx-auto h-8 w-8 text-muted-foreground/50" />
+                            <p className="text-sm font-bold text-foreground">
+                                {search
+                                    ? (isKm ? "រកមិនឃើញការលក់ដែលត្រូវនឹងពាក្យស្វែងរកទេ" : "No sales match your search")
+                                    : (isKm ? "មិនទាន់មានការលក់ក្នុងប្រភេទនេះទេ" : "No sales in this category yet")}
+                            </p>
+                        </CardContent></Card>
+                    ) : (
+                        <div className="grid gap-3 xl:grid-cols-2">
+                            {[...sales]
+                                .sort((a, b) => Number(b.receiptReviewStatus === "PENDING") - Number(a.receiptReviewStatus === "PENDING"))
+                                .map((sale) => (
+                                <Card key={sale.id} className={cn(
+                                    "overflow-hidden border-border/80",
+                                    sale.receiptReviewStatus === "PENDING" && "border-amber-400/70 bg-amber-500/[0.025] shadow-sm",
+                                )}>
+                                    <CardContent className="space-y-4 p-4 sm:p-5">
+                                        <div className="flex flex-col gap-3 sm:flex-row">
+                                            {sale.receiptUrl && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setViewingReceipt(sale)}
+                                                    className="group relative h-28 w-full shrink-0 overflow-hidden rounded-xl border border-border bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-28"
+                                                    aria-label={isKm ? "មើលបង្កាន់ដៃ" : "View receipt"}
+                                                >
+                                                    <img src={sale.receiptUrl} alt={`Payment receipt for ${sale.templateId}`} className="h-full w-full object-cover" loading="lazy" />
+                                                    <span className="absolute inset-x-0 bottom-0 bg-black/65 px-1 py-1 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                                                        {isKm ? "មើលបង្កាន់ដៃ" : "View receipt"}
+                                                    </span>
+                                                </button>
+                                            )}
+                                            <div className="min-w-0 flex-1 space-y-2">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className={cn("rounded-md px-2 py-1 text-[10px] font-black", statusClass(sale))}>{statusText(sale)}</span>
+                                                    <span className="rounded-md bg-primary/10 px-2 py-1 text-[10px] font-black text-primary">{sale.templateId}</span>
                                                 </div>
-                                            </CardContent>
-                                        </Card>
-                                    </m.div>
-                                );
-                            })}
-                        </AnimatePresence>
-                    </div>
-                )}
+                                                <p className="text-sm font-bold text-foreground">{sale.groomName} & {sale.brideName}</p>
+                                                <p className="break-all text-xs text-muted-foreground">{sale.user?.name || "User"} · {sale.user?.email || "—"}</p>
+                                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                                    <span className="font-black text-foreground">{formatAmount(sale.amount, sale.currency)}</span>
+                                                    <span>{isKm ? "ទិញ" : "Purchased"}: {formatDate(sale.purchaseDate || sale.createdAt, locale)}</span>
+                                                </div>
+                                                {sale.receiptReference && <p className="break-words text-[11px] text-muted-foreground">{isKm ? "ចំណាំ:" : "Note:"} {sale.receiptReference}</p>}
+                                                {sale.paymentOrderId && <p className="break-all font-mono text-[10px] text-muted-foreground">Order: {sale.paymentOrderId}</p>}
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-3 border-t border-border/70 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="flex flex-wrap gap-2">
+                                            {sale.receiptReviewStatus === "PENDING" ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => setViewingReceipt(sale)}
+                                                    className="border-amber-500/40 font-bold text-amber-800 hover:bg-amber-500/10 dark:text-amber-300"
+                                                >
+                                                    <FileCheck size={14} /> {isKm ? "ពិនិត្យបង្កាន់ដៃ" : "Review receipt"}
+                                                </Button>
+                                            ) : (
+                                                <Button size="sm" variant="outline" onClick={() => void loadHistory(sale)}>
+                                                    <History size={14} /> {isKm ? "ប្រវត្តិ" : "History"}
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-wrap justify-end gap-2">
+                                            {sale.receiptReviewStatus === "PENDING" && !sale.receiptUrl && (
+                                                <span className="self-center text-right text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                                    {isKm ? "មិនមានរូបបង្កាន់ដៃសម្រាប់ពិនិត្យទេ" : "No receipt image is available"}
+                                                </span>
+                                            )}
+                                            {sale.receiptReviewStatus !== "PENDING" && sale.status === "ACTIVE" && (
+                                                <Button size="sm" variant="outline" disabled={processing === sale.id} onClick={() => void updateSale(sale, { licenseAction: "DEACTIVATE" })}>
+                                                    {processing === sale.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X size={14} />}
+                                                    {isKm ? "បិទ License" : "Deactivate"}
+                                                </Button>
+                                            )}
+                                            {sale.receiptReviewStatus !== "PENDING" && sale.status === "INACTIVE" && (
+                                                sale.receiptReviewStatus === "APPROVED" || !!sale.bakongTrxId ? (
+                                                    <Button size="sm" disabled={processing === sale.id} onClick={() => void updateSale(sale, { licenseAction: "ACTIVATE" })} className="bg-emerald-600 text-white hover:bg-emerald-700">
+                                                        {processing === sale.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check size={14} />}
+                                                        {isKm ? "បើក License" : "Activate"}
+                                                    </Button>
+                                                ) : null
+                                            )}
+                                        </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+
+                    {!loadError && pages > 1 && (
+                        <nav aria-label={isKm ? "ទំព័រការលក់ Template" : "Template sales pages"} className="flex items-center justify-center gap-3 pt-2">
+                            <Button variant="outline" disabled={page <= 1 || loading} onClick={() => setPage((current) => current - 1)}>
+                                <ChevronLeft size={15} /> {isKm ? "មុន" : "Previous"}
+                            </Button>
+                            <span className="text-xs font-bold text-muted-foreground">{page} / {pages}</span>
+                            <Button variant="outline" disabled={page >= pages || loading} onClick={() => setPage((current) => current + 1)}>
+                                {isKm ? "បន្ទាប់" : "Next"} <ChevronRight size={15} />
+                            </Button>
+                        </nav>
+                    )}
+                </section>
             </main>
 
-            <Dialog open={!!pendingApproval} onOpenChange={(open) => !open && setPendingApproval(null)}>
-                <DialogContent>
+            <Dialog
+                open={!!viewingHistory}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewingHistory(null);
+                        setHistoryError(null);
+                    }
+                }}
+            >
+                <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
                     <DialogHeader>
-                        <DialogTitle>{isKm ? "បញ្ជាក់ការអនុម័តការបង់ប្រាក់" : "Confirm payment approval"}</DialogTitle>
+                        <DialogTitle>{isKm ? "ប្រវត្តិការផ្លាស់ប្តូរ License" : "License change history"}</DialogTitle>
                         <DialogDescription>
-                            {isKm
-                                ? "សូមផ្ទៀងផ្ទាត់ package និងចំនួនទឹកប្រាក់ក្នុងវិក្កយបត្រឲ្យត្រូវ មុនអនុម័ត។"
-                                : "Verify that the receipt shows the requested package and amount before approving."}
+                            {viewingHistory?.templateId} · {viewingHistory?.groomName} & {viewingHistory?.brideName}
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
-                        <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">{isKm ? "កញ្ចប់" : "Package"}</span>
-                            <strong>{pendingApproval?.packageType}</strong>
+                    {historyLoading ? (
+                        <div className="flex justify-center py-12 text-muted-foreground">
+                            <Loader2 className="h-6 w-6 animate-spin" />
                         </div>
-                        <div className="mt-2 flex justify-between gap-4">
-                            <span className="text-muted-foreground">{isKm ? "ចំនួនទឹកប្រាក់" : "Amount"}</span>
-                            <strong>${pendingApproval?.amount.toFixed(2)}</strong>
-                        </div>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setPendingApproval(null)}>
-                            {isKm ? "ត្រឡប់" : "Cancel"}
-                        </Button>
-                        <Button
-                            disabled={!pendingApproval || processing === pendingApproval.weddingId}
-                            onClick={async () => {
-                                if (!pendingApproval) return;
-                                const approved = await handleUpdatePayment(
-                                    pendingApproval.weddingId,
-                                    "PAID",
-                                    pendingApproval.packageType,
+                    ) : historyError ? (
+                        <p role="alert" className="py-6 text-center text-sm text-destructive">{historyError}</p>
+                    ) : history.length === 0 ? (
+                        <p className="py-8 text-center text-sm text-muted-foreground">
+                            {isKm ? "មិនទាន់មានប្រវត្តិសកម្មភាពទេ។" : "No recorded license changes yet."}
+                        </p>
+                    ) : (
+                        <ol className="space-y-3">
+                            {history.map((entry) => {
+                                const details = entry.details || {};
+                                const event = String(details.action || details.decision || "UPDATE");
+                                const eventLabel: Record<string, { km: string; en: string }> = {
+                                    APPROVED: { km: "អនុម័តបង្កាន់ដៃ", en: "Receipt approved" },
+                                    REJECTED: { km: "បដិសេធបង្កាន់ដៃ", en: "Receipt rejected" },
+                                    ACTIVATE: { km: "បើក License", en: "License activated" },
+                                    DEACTIVATE: { km: "បិទ License", en: "License deactivated" },
+                                };
+                                return (
+                                    <li key={entry.id} className="rounded-xl border border-border/80 bg-muted/20 p-4">
+                                        <div className="flex flex-wrap items-start justify-between gap-2">
+                                            <p className="text-sm font-bold text-foreground">
+                                                {eventLabel[event]?.[isKm ? "km" : "en"] || event}
+                                            </p>
+                                            <time className="text-xs text-muted-foreground">
+                                                {formatDate(entry.createdAt, locale)}
+                                            </time>
+                                        </div>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            {isKm ? "ដោយ" : "By"}: {entry.actorName || entry.actorId}
+                                        </p>
+                                    </li>
                                 );
-                                if (approved) setPendingApproval(null);
-                            }}
-                            className="bg-emerald-600 text-white hover:bg-emerald-700"
-                        >
-                            {processing && pendingApproval && processing === pendingApproval.weddingId
-                                ? <Loader2 className="h-4 w-4 animate-spin" />
-                                : <Check size={16} />}
-                            {isKm ? "ផ្ទៀងផ្ទាត់ហើយអនុម័ត" : "Verify and approve"}
-                        </Button>
-                    </div>
+                            })}
+                        </ol>
+                    )}
                 </DialogContent>
             </Dialog>
 
-            {/* Receipt Modal (Full Screen Inspection) */}
             <Dialog open={!!viewingReceipt} onOpenChange={(open) => !open && setViewingReceipt(null)}>
-                <DialogContent className="sm:max-w-lg bg-card border border-border rounded-3xl p-6 shadow-2xl font-kantumruy">
-                    <DialogHeader className="pb-3 border-b border-border/60">
-                        <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                            <FileCheck className="text-emerald-500" size={20} />
-                            <span>ពិនិត្យផ្ទៀងផ្ទាត់វិក្កយបត្រ (Payment Slip Receipt)</span>
-                        </DialogTitle>
-                        <DialogDescription className="text-xs text-muted-foreground">
-                            {viewingReceipt?.coupleName} • {viewingReceipt?.userEmail}
+                <DialogContent className="max-h-[94dvh] overflow-y-auto sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>{isKm ? "ពិនិត្យបង្កាន់ដៃទិញ Template" : "Review template purchase receipt"}</DialogTitle>
+                        <DialogDescription>
+                            {viewingReceipt?.templateId} · {viewingReceipt?.user?.name || viewingReceipt?.user?.email || "—"}
                         </DialogDescription>
                     </DialogHeader>
-
-                    <div className="space-y-4 pt-2">
-                        {/* Image Canvas */}
-                        <div className="rounded-2xl border border-border overflow-hidden bg-slate-950 flex items-center justify-center max-h-[420px] shadow-inner">
-                            <img 
-                                src={viewingReceipt?.imageUrl} 
-                                alt="Payment Slip Full Size" 
-                                className="w-full h-auto max-h-[420px] object-contain" 
-                            />
-                        </div>
-
-                        {/* Metadata Details */}
-                        <div className="grid grid-cols-2 gap-2 text-xs bg-muted/40 p-3.5 rounded-xl border border-border/60">
-                            <div>
-                                <span className="text-muted-foreground block text-xs font-bold uppercase">កញ្ចប់សេវា</span>
-                                <span className="font-bold text-foreground">{viewingReceipt?.packageType} PLAN (${viewingReceipt?.amount})</span>
+                    {viewingReceipt?.receiptUrl && (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-muted/30 p-3 text-xs sm:grid-cols-3">
+                                <div className="min-w-0">
+                                    <p className="text-muted-foreground">{isKm ? "គូស្វាមីភរិយា" : "Couple"}</p>
+                                    <p className="mt-1 truncate font-bold text-foreground">{viewingReceipt.groomName} & {viewingReceipt.brideName}</p>
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-muted-foreground">{isKm ? "ចំនួនទឹកប្រាក់" : "Amount"}</p>
+                                    <p className="mt-1 font-bold text-foreground">{formatAmount(viewingReceipt.amount, viewingReceipt.currency)}</p>
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-muted-foreground">{isKm ? "ថ្ងៃផ្ញើ" : "Submitted"}</p>
+                                    <p className="mt-1 font-bold text-foreground">{formatDate(viewingReceipt.receiptSubmittedAt, locale)}</p>
+                                </div>
+                                {viewingReceipt.receiptReference && (
+                                    <div className="min-w-0">
+                                        <p className="text-muted-foreground">{isKm ? "កំណត់ចំណាំពីអ្នកប្រើ" : "User note"}</p>
+                                        <p className="mt-1 whitespace-pre-wrap break-words font-bold text-foreground">{viewingReceipt.receiptReference}</p>
+                                    </div>
+                                )}
+                                <div className="col-span-2 min-w-0 sm:col-span-2">
+                                    <p className="text-muted-foreground">{isKm ? "អ៊ីមែល" : "Email"}</p>
+                                    <p className="mt-1 break-all font-bold text-foreground">{viewingReceipt.user?.email || "—"}</p>
+                                </div>
                             </div>
-                            <div>
-                                <span className="text-muted-foreground block text-xs font-bold uppercase">កាលបរិច្ឆេទ</span>
-                                <span className="font-bold text-foreground">{viewingReceipt?.date}</span>
+                            <div className="flex max-h-[58dvh] min-h-48 items-center justify-center overflow-auto rounded-xl bg-slate-950 p-2">
+                                <img src={viewingReceipt.receiptUrl} alt={`Payment receipt for ${viewingReceipt.templateId}`} className="max-h-[58dvh] w-full object-contain" />
                             </div>
+                            {viewingReceipt.receiptReviewStatus === "PENDING" && (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Button variant="destructive" disabled={processing === viewingReceipt.id} onClick={() => void updateSale(viewingReceipt, { decision: "REJECTED" })} className="h-11">
+                                        <X size={15} /> {isKm ? "បដិសេធ" : "Reject"}
+                                    </Button>
+                                    <Button disabled={processing === viewingReceipt.id} onClick={() => void updateSale(viewingReceipt, { decision: "APPROVED" })} className="h-11 bg-emerald-600 text-white hover:bg-emerald-700">
+                                        <Check size={15} /> {isKm ? "អនុម័ត" : "Approve"}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
-
-                        {/* Close button */}
-                        <div className="flex justify-end pt-1">
-                            <Button 
-                                onClick={() => setViewingReceipt(null)}
-                                className="h-10 px-5 rounded-xl font-bold text-xs bg-foreground text-background hover:opacity-90"
-                            >
-                                បិទផ្ទាំងពិនិត្យ
-                            </Button>
-                        </div>
-                    </div>
+                    )}
                 </DialogContent>
             </Dialog>
         </div>

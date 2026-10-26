@@ -39,22 +39,26 @@ export const EntranceEnvelope: React.FC<EntranceEnvelopeProps> = ({
                     <div className="relative flex h-full w-full max-w-[430px] flex-col items-center justify-between overflow-hidden bg-[#2D0A14] px-6 py-10 select-none cursor-pointer md:rounded-3xl md:shadow-2xl">
                     {/* Full-bleed Pre-Wedding Photo Background */}
                     <div className="absolute inset-0 z-0 overflow-hidden">
-                        <img
-                            src={heroImage}
-                            className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-70"
-                            style={{ objectPosition: 'center 20%' }}
-                            alt=""
-                            aria-hidden="true"
-                        />
-                        <img
-                            src={heroImage}
-                            className="relative w-full h-full object-cover filter brightness-[0.92] transition-transform duration-1000"
-                            style={{ objectPosition: 'center 20%' }}
-                            loading="eager"
-                            fetchPriority="high"
-                            decoding="async"
-                            alt="Pre-wedding Cover"
-                        />
+                        {heroImage && (
+                            <>
+                                <img
+                                    src={heroImage}
+                                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-70"
+                                    style={{ objectPosition: 'center 20%' }}
+                                    alt=""
+                                    aria-hidden="true"
+                                />
+                                <img
+                                    src={heroImage}
+                                    className="relative w-full h-full object-cover filter brightness-[0.92] transition-transform duration-1000"
+                                    style={{ objectPosition: 'center 20%' }}
+                                    loading="eager"
+                                    fetchPriority="high"
+                                    decoding="async"
+                                    alt="Pre-wedding Cover"
+                                />
+                            </>
+                        )}
                         <div className="absolute inset-0 bg-gradient-to-b from-[#2D0A14]/60 via-[#2D0A14]/15 to-[#2D0A14]/85" />
                         <div className="absolute inset-4 rounded-[2rem] border border-rose-100/30" aria-hidden="true" />
                     </div>

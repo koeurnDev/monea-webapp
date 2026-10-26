@@ -179,12 +179,12 @@ export default function KhmerLegacy({ wedding, guestName, config }: TemplateProp
                         initial="initial"
                         exit="exit"
                         onClick={handleOpenEnvelope}
-                        className="fixed inset-0 z-[100] flex h-[100dvh] w-full items-center justify-center overflow-hidden bg-[#0A1226] p-4 text-center select-none cursor-pointer md:p-0"
+                        className="fixed inset-0 z-[100] flex h-[100dvh] w-full items-center justify-center overflow-hidden bg-[#0b0e14] p-0 text-center select-none cursor-pointer"
                         style={{ isolation: 'isolate' }}
                     >
-                        <div className="relative flex h-full w-full max-w-[420px] flex-col items-center justify-center gap-3 overflow-hidden rounded-[2rem] border border-white/10 bg-black/15 px-4 py-6 shadow-[0_25px_80px_rgba(0,0,0,0.45)] backdrop-blur-[2px] sm:gap-5 sm:px-5 sm:py-8">
+                        <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 overflow-hidden bg-[#0b0e14] px-4 py-6 sm:gap-5 sm:px-5 sm:py-8">
                             {/* Full Background (Pre-Wedding Photo or Botanical Garden Arch) */}
-                            <div className="absolute inset-0 z-0 overflow-hidden rounded-[2rem]">
+                            <div className="absolute inset-0 z-0 overflow-hidden">
                                 {heroImage && (
                                     <>
                                         <img

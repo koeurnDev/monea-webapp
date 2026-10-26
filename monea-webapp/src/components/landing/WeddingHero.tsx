@@ -102,7 +102,7 @@ export function WeddingHero() {
                         >
                             <Link 
                                 to={AUTH_URLS.SIGN_UP} 
-                                className="group relative flex h-12 sm:h-14 px-7 sm:px-8 items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-rose-500/25 hover:shadow-lg hover:shadow-rose-500/35 hover:scale-105 active:scale-95 transition-all w-full sm:w-auto"
+                                className="group relative flex h-12 sm:h-14 px-7 sm:px-8 items-center justify-center overflow-hidden rounded-full border border-primary bg-primary text-primary-foreground font-bold text-xs sm:text-sm shadow-md shadow-primary/20 hover:bg-primary/90 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all w-full sm:w-auto"
                             >
                                 <span className="relative z-10 flex items-center justify-center gap-2 pt-0.5">
                                     <span>បង្កើតធៀបការឥឡូវនេះ</span>

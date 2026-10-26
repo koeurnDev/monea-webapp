@@ -228,6 +228,37 @@ export const assignUploadedPhotosToSlots = <T extends { url?: string; type?: str
     return nextItems;
 };
 
+export const appendUploadedPhotosToGallery = (
+    currentItems: readonly { url?: string; publicId?: string; type?: string }[],
+    uploadedPhotos: readonly { url?: string; publicId?: string; type?: string }[],
+    templateId?: string | null,
+): { url: string; publicId?: string; type: string }[] => {
+    const nextItems = currentItems.map((item) => ({
+        ...item,
+        url: item.url || "",
+        type: item.type || "IMAGE",
+    }));
+    const slotCount = getWeddingPhotoLayout(templateId).slots.length;
+    while (nextItems.length < slotCount) {
+        nextItems.push({ url: "", type: "IMAGE" });
+    }
+
+    for (const photo of uploadedPhotos) {
+        if (!photo.url?.trim() || photo.type?.toUpperCase() === "VIDEO" || photo.type?.toUpperCase() === "CERTIFICATE") {
+            continue;
+        }
+        const isDuplicate = nextItems.some((item) =>
+            (photo.publicId && item.publicId === photo.publicId)
+            || item.url === photo.url
+        );
+        if (!isDuplicate) {
+            nextItems.push({ ...photo, url: photo.url, type: photo.type || "IMAGE" });
+        }
+    }
+
+    return nextItems;
+};
+
 export const swapWeddingPhotoSlots = <T extends { url?: string; type?: string }>(
     currentItems: readonly T[],
     fromIndex: number,

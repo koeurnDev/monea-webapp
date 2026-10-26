@@ -46,10 +46,14 @@ export function TemplatesShowcase() {
                         <p className="mt-1 text-sm leading-relaxed text-muted-foreground sm:text-base">
                             ជ្រើសរើសរចនាបថដែលសមនឹងថ្ងៃពិសេសរបស់អ្នក។
                         </p>
+
+                        <p className="mt-4 text-sm leading-7 text-muted-foreground sm:text-base">
+                            ចង់ធ្វើ<strong>ធៀបការឌីជីថល</strong>ឆាប់ៗ? សូមមើលព័ត៌មានលើទំព័រ <Link className="text-primary hover:underline" to="/khmer-digital-wedding-invitation">ធៀបការឌីជីថល</Link> ឬចាប់ផ្តើមបង្កើតដោយខ្លួនឯង។
+                        </p>
                     </div>
                     <Link
                         to="/templates"
-                        className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full border border-border px-5 text-sm font-bold text-foreground transition-colors hover:border-primary hover:text-primary"
+                        className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-5 text-sm font-bold text-primary transition-colors hover:border-primary/60 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                         មើលគំរូទាំងអស់ <ArrowRight size={16} aria-hidden="true" />
                     </Link>
@@ -59,8 +63,6 @@ export function TemplatesShowcase() {
                     {TEMPLATE_CATALOG.map((template, index) => {
                         const presentation = metadata?.[template.id];
                         const image = presentation?.image ?? template.image;
-                        const hasCustomCover = !!presentation && presentation.image !== template.image;
-                        const isPaperDesign = template.id === "nea-m05" && !hasCustomCover;
 
                         return (
                             <article
@@ -69,18 +71,7 @@ export function TemplatesShowcase() {
                                 className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm"
                             >
                                 <div className="relative aspect-[1.08/1] overflow-hidden bg-muted">
-                                    {isPaperDesign ? (
-                                        <div
-                                            className="absolute inset-0 flex items-center justify-center bg-[#68745c] bg-cover bg-center p-6"
-                                            style={{ backgroundImage: "url('/khmer-invite-starter-kit/textures/paper-olive.webp')" }}
-                                        >
-                                            <img
-                                                src="/khmer-invite-starter-kit/elements/crest.svg"
-                                                alt=""
-                                                className="h-14 w-14 opacity-80"
-                                            />
-                                        </div>
-                                    ) : (
+                                    {image ? (
                                         <img
                                             src={image}
                                             alt=""
@@ -88,6 +79,8 @@ export function TemplatesShowcase() {
                                             fetchPriority={index === 0 ? "high" : "auto"}
                                             className="h-full w-full object-cover"
                                         />
+                                    ) : (
+                                        <div className="absolute inset-0 bg-gradient-to-br from-muted via-card to-muted" />
                                     )}
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
                                     <span className="absolute left-3 top-3 rounded-full border border-white/40 bg-black/50 px-3 py-1 text-xs font-bold tracking-[0.16em] text-white backdrop-blur-sm sm:text-xs">

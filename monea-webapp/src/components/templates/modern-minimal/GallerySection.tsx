@@ -6,13 +6,46 @@ import { getGalleryCardClass, getGalleryContainerClass, getGalleryDisplayStyle, 
 import { PhotoImage } from "../shared/PhotoImage";
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
-export const GallerySection = ({ wedding }: { wedding: WeddingData }) => {
+function GalleryThumbnail({
+    url,
+    alt,
+    className,
+    sizes,
+}: {
+    url: string;
+    alt: string;
+    className: string;
+    sizes: string;
+}) {
+    const [isLoaded, setIsLoaded] = useState(false);
+
+    return (
+        <PhotoImage
+            src={url}
+            alt={alt}
+            className={`${className} opacity-0 transition-[opacity,transform] duration-500 ${isLoaded ? "opacity-100" : ""}`}
+            sizes={sizes}
+            loading="lazy"
+            onLoad={() => setIsLoaded(true)}
+        />
+    );
+}
+
+export const GallerySection = ({
+    wedding,
+    onLightboxOpenChange,
+}: {
+    wedding: WeddingData;
+    onLightboxOpenChange?: (open: boolean) => void;
+}) => {
     const validImages = getWeddingPhotos(wedding).map((item) => item.url.trim());
     const galleryStyle = getGalleryDisplayStyle(wedding.themeSettings?.galleryStyle);
 
     const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
-    const titleText = wedding.themeSettings?.customLabels?.galleryTitle || "វិចិត្រសាល";
+    const titleText = wedding.themeSettings?.customLabels?.galleryTitle
+        || wedding.themeSettings?.customLabels?.gallery_title
+        || "វិចិត្រសាល";
 
     if (validImages.length === 0) return null;
 
@@ -35,28 +68,25 @@ export const GallerySection = ({ wedding }: { wedding: WeddingData }) => {
 
                 <div className={getGalleryContainerClass(galleryStyle)}>
                     {validImages.map((url, idx) => (
-                        <m.button
+                        <button
                             key={`${url}-${idx}`}
                             type="button"
                             aria-label={`រូបទី ${idx + 1} - ចុចដើម្បីពង្រីកមើល`}
-                            initial={{ opacity: 0, y: 16 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.45, delay: (idx % 6) * 0.05 }}
-                            viewport={{ once: true, amount: 0.15 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => setSelectedIdx(idx)}
-                            className={`group relative cursor-pointer overflow-hidden rounded-2xl border border-black/[0.04] bg-white shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b8055] focus-visible:ring-offset-2 ${getGalleryCardClass(galleryStyle, idx)}`}
+                            onClick={() => {
+                                setSelectedIdx(idx);
+                                onLightboxOpenChange?.(true);
+                            }}
+                            className={`group relative cursor-pointer overflow-hidden rounded-2xl border border-black/[0.04] bg-white shadow-sm transition-[transform,box-shadow] duration-200 active:scale-[0.98] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b8055] focus-visible:ring-offset-2 ${getGalleryCardClass(galleryStyle, idx)}`}
                         >
-                            <PhotoImage
-                                src={url}
+                            <GalleryThumbnail
+                                url={url}
                                 alt={`Gallery ${idx + 1}`}
-                                className={`${getGalleryImageClass(galleryStyle)} transition-transform duration-500 group-hover:scale-[1.03]`}
+                                className={`${getGalleryImageClass(galleryStyle)} group-hover:scale-[1.03]`}
                                 sizes={galleryStyle === "slider"
                                     ? "(max-width: 640px) 82vw, 60vw"
-                                    : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 320px"}
-                                loading="lazy"
+                                    : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 400px"}
                             />
-                        </m.button>
+                        </button>
                     ))}
                 </div>
             </div>
@@ -67,7 +97,10 @@ export const GallerySection = ({ wedding }: { wedding: WeddingData }) => {
                     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/95 backdrop-blur-md p-4">
                         {/* Close button */}
                         <button
-                            onClick={() => setSelectedIdx(null)}
+                            onClick={() => {
+                                setSelectedIdx(null);
+                                onLightboxOpenChange?.(false);
+                            }}
                             className="absolute top-6 right-6 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
                         >
                             <X size={24} />
@@ -113,6 +146,7 @@ export const GallerySection = ({ wedding }: { wedding: WeddingData }) => {
                                 src={validImages[selectedIdx]}
                                 alt="Full preview"
                                 className="max-w-full max-h-[82vh] object-contain"
+                                sizes="(max-width: 768px) 100vw, 800px"
                             />
                         </m.div>
 

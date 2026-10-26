@@ -2,7 +2,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import {
     Users, PartyPopper, CalendarCheck, TrendingUp, Activity,
-    ArrowRight, Zap, Settings, Megaphone, Shield, ChevronRight
+    ArrowRight, Zap, Settings, Megaphone, Shield, ChevronRight, DollarSign
 } from "lucide-react";
 import { m } from 'framer-motion';
 import { cn } from "@/lib/utils";
@@ -95,7 +95,7 @@ export default function AdminDashboardClient({ initialStats, initialLogs, userRo
     const quickLinks = [
         { to: "/admin/users", icon: Users, label: "អ្នកប្រើ", color: "text-primary", bg: "bg-accent hover:bg-accent/80 border-primary/20 hover:border-primary/40" },
         { to: "/admin/weddings", icon: PartyPopper, label: "មង្គលការ", color: "text-sage", bg: "bg-accent hover:bg-accent/80 border-sage/20 hover:border-sage/40" },
-        { to: "/admin/master/payments", icon: TrendingUp, label: "ការទូទាត់", color: "text-gold", bg: "bg-gold/10 hover:bg-gold/20 border-gold/20 hover:border-gold/40" },
+        { to: "/admin/master/payments", icon: TrendingUp, label: "ការលក់ Template", color: "text-gold", bg: "bg-gold/10 hover:bg-gold/20 border-gold/20 hover:border-gold/40" },
         { to: "/admin/master/broadcast", icon: Megaphone, label: "ប្រកាស", color: "text-primary", bg: "bg-accent hover:bg-accent/80 border-primary/20 hover:border-primary/40" },
         { to: "/admin/master/audit", icon: Activity, label: "សវនកម្ម", color: "text-sage", bg: "bg-accent hover:bg-accent/80 border-sage/20 hover:border-sage/40" },
         ...(userRole === "PLATFORM_OWNER" ? [

@@ -3,27 +3,20 @@
   "short_name": "MONEO",
   "description": "បង្កើត និងចែករំលែកធៀបអញ្ជើញមង្គលការឌីជីថលជាមួយ MONEO",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#10b981",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icons/logomoneo.jpg",
-      "sizes": "1024x1024",
-      "type": "image/jpeg",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/logomoneo.jpg",
-      "sizes": "1024x1024",
-      "type": "image/jpeg",
+      "src": "/icons/logomoneo.webp",
+      "sizes": "any",
+      "type": "image/webp",
       "purpose": "any"
     }
   ],
   "categories": ["lifestyle", "social"],
   "lang": "km",
-  "dir": "ltr",
-  "scope": "/",
-  "prefer_related_applications": false
+  "dir": "ltr"
 }

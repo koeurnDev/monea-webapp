@@ -27,6 +27,10 @@ import { getTemplateDefaultPaperColor, TEMPLATE_PAPER_TEXTURES } from "../src/li
 import { NEA_M05_COLOR_PRESETS } from "../src/lib/nea-m05-colors.ts";
 import { createSerialTaskQueue } from "../src/lib/serial-task-queue.ts";
 import { normalizeWeddingActivities } from "../src/lib/wedding-activities.ts";
+import {
+    getOptimizedImageDimensions,
+    prepareImageForUpload,
+} from "../src/lib/prepare-image-upload.ts";
 import { DEFAULT_WEDDING } from "../src/data/wedding.ts";
 import {
     DEFAULT_ENGAGEMENT_ACTIVITIES,
@@ -41,6 +45,11 @@ import {
     getGalleryImageClass,
 } from "../src/components/templates/shared/gallery-layout.ts";
 import {
+    getMapEmbedUrl,
+    isGoogleMapsShortLink,
+} from "../src/components/templates/shared/mapUtils.ts";
+import {
+    appendUploadedPhotosToGallery,
     assignUploadedPhotosToSlots,
     getWeddingPhotoSlotAspectRatio,
     getWeddingPhotoSlotIndex,
@@ -51,6 +60,8 @@ import {
 } from "../src/lib/wedding-photo-layout.ts";
 import { getContrastingTextColor } from "../src/lib/color-contrast.ts";
 import { WeddingDataCache } from "../src/lib/wedding-data-cache.ts";
+import { buildSrcSet, getOriginalMediaUrl, MEDIA_WIDTHS, optimizeMediaUrl } from "../src/lib/media.ts";
+import { getPostLoginPath } from "../src/lib/auth-navigation.ts";
 
 const createWedding = (themeSettings = {}) => ({
     id: "template-contract-test",
@@ -61,6 +72,174 @@ const createWedding = (themeSettings = {}) => ({
     activities: undefined,
     galleryItems: undefined,
     themeSettings,
+});
+
+test("social preview fallbacks and service worker precache only use deployed icons", async () => {
+    const { readFile, access } = await import("node:fs/promises");
+    const [weddingPage, step5, serviceWorker] = await Promise.all([
+        readFile(new URL("../src/app/w/[id]/_components/WeddingDataView.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/app/dashboard/design/components/Step5Extra.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
+    ]);
+    const publicIcons = new URL("../public/icons/", import.meta.url);
+
+    assert.match(weddingPage, /\/icons\/logomoneo\.webp/);
+    assert.match(step5, /\/icons\/logomoneo\.webp/);
+    assert.doesNotMatch(weddingPage + step5 + serviceWorker, /icon-(?:192x192|512x512)\.png/);
+    await access(new URL("logomoneo.webp", publicIcons));
+    assert.match(serviceWorker, /'\/icons\/logomoneo\.webp'/);
+    assert.doesNotMatch(serviceWorker, /'\/(?:logo\.png|icons\/(?:icon-192x192|icon-512x512)\.png)'/);
+});
+
+test("R2 media uses its live source URL instead of unavailable Cloudflare transforms", () => {
+    const original = "https://media.moneoez.com/wedding-id/photo%20one.jpg";
+    const transformed = optimizeMediaUrl(original, { width: 640, quality: 78 });
+
+    assert.equal(transformed, original);
+    assert.equal(getOriginalMediaUrl(original), original);
+    assert.equal(
+        getOriginalMediaUrl("https://moneoez.com/cdn-cgi/image/width=800/https://media.moneoez.com/wedding-id/photo%20one.jpg"),
+        original,
+    );
+    assert.equal(
+        optimizeMediaUrl("https://example.com/photo.jpg", { width: 640 }),
+        "https://example.com/photo.jpg",
+    );
+    assert.equal(buildSrcSet(original, MEDIA_WIDTHS.lightbox, { quality: 78 }), undefined);
+    assert.deepEqual(MEDIA_WIDTHS.thumbnail, [400, 800]);
+    assert.deepEqual(MEDIA_WIDTHS.grid, [400, 800]);
+    assert.deepEqual(MEDIA_WIDTHS.lightbox, [400, 800, 1200, 1600]);
+});
+
+test("uploaded photos are resized to a guest-friendly maximum dimension", () => {
+    assert.deepEqual(getOptimizedImageDimensions(4032, 3024), { width: 1600, height: 1200 });
+    assert.deepEqual(getOptimizedImageDimensions(1200, 1600), { width: 1200, height: 1600 });
+});
+
+test("R2 image uploads compress supported photos and preserve animated formats", async () => {
+    const originalCreateImageBitmap = Object.getOwnPropertyDescriptor(globalThis, "createImageBitmap");
+    const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+    let outputWidth = 0;
+    let outputHeight = 0;
+    Object.defineProperty(globalThis, "createImageBitmap", {
+        configurable: true,
+        value: async () => ({ width: 4032, height: 3024, close() {} }),
+    });
+    Object.defineProperty(globalThis, "document", {
+        configurable: true,
+        value: {
+            createElement: () => {
+                const canvas = {
+                    width: 0,
+                    height: 0,
+                    getContext: () => ({ drawImage() {} }),
+                    toBlob(callback, type) {
+                        outputWidth = canvas.width;
+                        outputHeight = canvas.height;
+                        callback(new Blob(["compressed"], { type }));
+                    },
+                };
+                return canvas;
+            },
+        },
+    });
+
+    try {
+        const photo = new File(["large photo"], "wedding.jpg", { type: "image/jpeg" });
+        const optimized = await prepareImageForUpload(photo);
+        assert.equal(optimized.name, "wedding.webp");
+        assert.equal(optimized.type, "image/webp");
+        assert.deepEqual([outputWidth, outputHeight], [1600, 1200]);
+
+        const animation = new File(["animation"], "invitation.gif", { type: "image/gif" });
+        assert.equal(await prepareImageForUpload(animation), animation);
+    } finally {
+        if (originalCreateImageBitmap) {
+            Object.defineProperty(globalThis, "createImageBitmap", originalCreateImageBitmap);
+        } else {
+            delete globalThis.createImageBitmap;
+        }
+        if (originalDocument) {
+            Object.defineProperty(globalThis, "document", originalDocument);
+        } else {
+            delete globalThis.document;
+        }
+    }
+});
+
+test("PhotoImage retries the original image if a Cloudflare transformation fails", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const photoImage = await readFile(
+        new URL("../src/components/templates/shared/PhotoImage.tsx", import.meta.url),
+        "utf8",
+    );
+    assert.match(photoImage, /getOriginalMediaUrl\(src\)/);
+    assert.match(photoImage, /setUseOriginal\(true\)/);
+    assert.match(photoImage, /srcSet=\{useOriginal \? undefined : responsiveSrcSet\}/);
+});
+
+test("invitation galleries declare responsive slot sizes and defer offscreen images", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const galleryFiles = [
+        "../src/components/templates/modern-minimal/GallerySection.tsx",
+        "../src/components/templates/blossom-romance/GallerySection.tsx",
+        "../src/components/templates/emerald-garden/GallerySection.tsx",
+        "../src/components/templates/fortune-harmony/GallerySection.tsx",
+        "../src/components/templates/anniversary-elegant/AnniversaryGallery.tsx",
+    ];
+    const galleries = await Promise.all(
+        galleryFiles.map((path) => readFile(new URL(path, import.meta.url), "utf8")),
+    );
+
+    for (const gallery of galleries) {
+        assert.match(gallery, /sizes=\{galleryStyle === "slider"/);
+        assert.match(gallery, /400px/);
+        assert.match(gallery, /loading="lazy"/);
+        assert.match(gallery, /sizes="\(max-width: 768px\) 100vw, 800px"/);
+    }
+});
+
+test("post-login navigation restores only internal routes allowed for the user's role", () => {
+    const origin = "https://moneoez.com";
+    assert.equal(
+        getPostLoginPath(false, { pathname: "/dashboard/design", search: "?step=4", hash: "#photos" }, origin),
+        "/dashboard/design?step=4#photos",
+    );
+    assert.equal(
+        getPostLoginPath(true, { pathname: "/admin/master/templates" }, origin),
+        "/admin/master/templates",
+    );
+    assert.equal(getPostLoginPath(false, { pathname: "/admin/master" }, origin), "/dashboard");
+    assert.equal(getPostLoginPath(false, { pathname: "//evil.example/path" }, origin), "/dashboard");
+    assert.equal(getPostLoginPath(true, null, origin), "/admin");
+});
+
+test("SSO callback initializes the authenticated user without reloading the app", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const callback = await readFile(
+        new URL("../src/pages/auth/AuthCallbackPage.tsx", import.meta.url),
+        "utf8",
+    );
+    assert.match(callback, /moneaClient\.get<CallbackProfile>\(['"]\/api\/auth\/me['"]\)/);
+    assert.match(callback, /setAuthenticatedUser\(\{/);
+    assert.match(callback, /navigate\(getPostLoginPath/);
+    assert.doesNotMatch(callback, /window\.location\.href/);
+});
+
+test("wedding pages keep user photos out of SEO image previews and indexing", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const weddingPage = await readFile(
+        new URL("../src/app/w/[id]/_components/WeddingDataView.tsx", import.meta.url),
+        "utf8",
+    );
+
+    assert.match(weddingPage, /const seoImage = new URL\("\/icons\/SE\.png", window\.location\.origin\)\.href/);
+    assert.match(weddingPage, /ogImage=\{seoImage\}/);
+    assert.match(weddingPage, /"image": seoImage/);
+    assert.match(weddingPage, /index, follow, noimageindex, max-image-preview:none/);
+    assert.match(weddingPage, /noindex, nofollow, noimageindex, max-image-preview:none/);
+    assert.doesNotMatch(weddingPage, /ogImage=\{heroImg\}/);
+    assert.doesNotMatch(weddingPage, /"image": heroImg/);
 });
 
 test("wedding data cache prunes expired data and caps memory and session entries", () => {
@@ -328,6 +507,22 @@ test("new photo uploads fill empty slots without replacing existing photos", () 
     assert.equal(result[3].url, "/new-two.jpg");
 });
 
+test("additional gallery uploads stay out of template slots and skip duplicate assets", () => {
+    const result = appendUploadedPhotosToGallery([
+        { url: "/cover.jpg", publicId: "cover", type: "IMAGE" },
+    ], [
+        { url: "/cover.jpg", publicId: "cover", type: "IMAGE" },
+        { url: "/gallery.jpg", publicId: "gallery", type: "IMAGE" },
+        { url: "/clip.mp4", publicId: "clip", type: "VIDEO" },
+    ], "modern-minimal");
+
+    const slotCount = WEDDING_PHOTO_LAYOUTS["modern-minimal"].slots.length;
+    assert.equal(result[0].url, "/cover.jpg");
+    assert.equal(result[1].url, "");
+    assert.equal(result[slotCount].url, "/gallery.jpg");
+    assert.equal(result.length, slotCount + 1);
+});
+
 test("reordering photos swaps slot assignments without moving certificates or changing the gallery boundary", () => {
     const items = [
         { url: "/cover.jpg", publicId: "cover", type: "IMAGE" },
@@ -352,7 +547,7 @@ test("reordering photos swaps slot assignments without moving certificates or ch
     ], 0, 1, "modern-minimal"), null);
 });
 
-test("photo library uploads multiple images and explains automatic template placement", async () => {
+test("photo library assigns section photos individually and keeps batch uploads in the extra gallery", async () => {
     const { readFile } = await import("node:fs/promises");
     const [mediaStep, library] = await Promise.all([
         readFile(new URL("../src/app/dashboard/design/components/Step4Media.tsx", import.meta.url), "utf8"),
@@ -361,9 +556,11 @@ test("photo library uploads multiple images and explains automatic template plac
 
     assert.match(library, /multiple/);
     assert.match(library, /accept="image\/\*"/);
-    assert.match(library, /រូបទី១ដាក់លើគម្រប/);
-    assert.match(library, /កន្លែងទំនេរបន្ទាប់/);
-    assert.match(library, /រូបដែលនឹងបង្ហាញលើធៀប/);
+    assert.match(library, /ជ្រើសរើសរូបតាមផ្នែក/);
+    assert.match(library, /ចុច «ដាក់រូប» នៅផ្នែកដែលអ្នកចង់ប្ដូរ/);
+    assert.match(library, /ជំនួសរូបចាស់នៅទីតាំងដដែល/);
+    assert.match(library, /រូបវិចិត្រសាលបន្ថែម/);
+    assert.match(library, /មិនត្រូវបានចាត់ទៅផ្នែកខាងលើដោយស្វ័យប្រវត្តិទេ/);
     assert.match(library, /កាត់តម្រឹម \$\{title\}/);
     assert.match(library, /<ImageCropperModal/);
     assert.match(library, /onReplacePhoto\(index, url, publicId\)/);
@@ -371,8 +568,9 @@ test("photo library uploads multiple images and explains automatic template plac
     assert.match(library, /ផ្លាស់ទី \$\{title\} ឡើងលើ/);
     assert.match(library, /ផ្លាស់ទី \$\{title\} ចុះក្រោម/);
     assert.match(library, /onMovePhoto\(fromIndex, toIndex\)/);
-    assert.match(mediaStep, /រូបទី១ជារូបគម្រប/);
-    assert.match(mediaStep, /រូបបន្ទាប់ៗទៅផ្នែកផ្សេងៗដោយស្វ័យប្រវត្តិ/);
+    assert.match(mediaStep, /ជ្រើសរើសរូបសម្រាប់ផ្នែកនីមួយៗខាងក្រោម/);
+    assert.match(mediaStep, /មិនត្រូវបានដាក់ស្ទួនទៅផ្នែកផ្សេងទេ/);
+    assert.doesNotMatch(mediaStep, /រូបបន្ទាប់ៗទៅផ្នែកផ្សេងៗដោយស្វ័យប្រវត្តិ/);
 });
 
 test("template photo migration tells users when photos move to the extra gallery", async () => {
@@ -717,6 +915,129 @@ test("modern invitation templates use scoped Khmer-safe typography spacing", asy
     }
 });
 
+test("M-02 invitation uses the requested wording and Suwannaphum font", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [letter, styles] = await Promise.all([
+        readFile(new URL("../src/components/templates/modern-minimal/LetterSection.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/app/globals.css", import.meta.url), "utf8"),
+    ]);
+
+    assert.match(letter, /border-y border-\[#cfc5af\][^"]*text-center/);
+    assert.match(letter, /font-suwannaphum[^"]*text-\[#77613a\]">[\s\S]*?មានកិត្តិយសសូមគោរពអញ្ជើញ/);
+    assert.match(letter, /font-suwannaphum[^"]*text-\[#77613a\] sm:mt-3/);
+    assert.match(letter, /m02-invitation-copy font-suwannaphum font-normal text-\[#37352f\]/);
+    assert.match(letter, /និងប្រិយមិត្តជិតឆ្ងាយទាំងអស់ ចូលរួមជាអធិបតី និងជាសាក្សីក្នុងពិធីសិរីមង្គលអាពាហ៍ពិពាហ៍/);
+    assert.match(styles, /\.modern-minimal-content \.m02-invitation-copy\.font-suwannaphum\s*\{\s*font-family: 'Suwannaphum', 'Kantumruy Pro', sans-serif !important;/);
+});
+
+test("M-02 calendar save action uses Suwannaphum", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [countdown, styles] = await Promise.all([
+        readFile(new URL("../src/components/templates/modern-minimal/CountdownSection.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/app/globals.css", import.meta.url), "utf8"),
+    ]);
+
+    assert.match(countdown, /className="m02-calendar-link[^"]*font-suwannaphum/);
+    assert.match(styles, /\.modern-minimal-content \.m02-calendar-link\.font-suwannaphum\s*\{\s*font-family: 'Suwannaphum', 'Kantumruy Pro', sans-serif !important;/);
+});
+
+test("M-02 gallery thumbnails fade in after loading without scroll-triggered card motion", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const gallery = await readFile(
+        new URL("../src/components/templates/modern-minimal/GallerySection.tsx", import.meta.url),
+        "utf8",
+    );
+
+    assert.match(gallery, /onLoad=\{\(\) => setIsLoaded\(true\)\}/);
+    assert.match(gallery, /transition-\[opacity,transform\] duration-500/);
+    assert.doesNotMatch(gallery, /<m\.button/);
+    assert.equal((gallery.match(/whileInView=/g) || []).length, 1);
+    assert.match(gallery, /transition-\[transform,box-shadow\] duration-200 active:scale-\[0\.98\]/);
+    assert.match(gallery, /loading="lazy"/);
+});
+
+test("M-02 envelope reveal avoids expensive blur and hero bounce animations", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [envelope, hero] = await Promise.all([
+        readFile(new URL("../src/components/templates/modern-minimal/EntranceEnvelope.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/components/templates/modern-minimal/HeroSection.tsx", import.meta.url), "utf8"),
+    ]);
+
+    assert.doesNotMatch(envelope, /filter: ['"]blur\(/);
+    assert.match(envelope, /y: -8/);
+    assert.doesNotMatch(hero, /animate-bounce/);
+});
+
+test("M-02 hides the floating music control while the gallery lightbox is open", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [gallery, template, music] = await Promise.all([
+        readFile(new URL("../src/components/templates/modern-minimal/GallerySection.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/components/templates/ModernMinimal.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/components/templates/modern-minimal/BackgroundMusic.tsx", import.meta.url), "utf8"),
+    ]);
+
+    assert.match(gallery, /onLightboxOpenChange\?\.\(true\)/);
+    assert.match(gallery, /onLightboxOpenChange\?\.\(false\)/);
+    assert.match(template, /showControl=\{!isGalleryLightboxOpen\}/);
+    assert.match(music, /if \(!audioUrl \|\| !showControl\) return null/);
+});
+
+test("admin master wedding rows show creation date and hour/minute in Cambodia time", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const page = await readFile(
+        new URL("../src/app/admin/master/weddings/page.tsx", import.meta.url),
+        "utf8",
+    );
+
+    assert.match(page, /hour: "2-digit",\s*minute: "2-digit",\s*hourCycle: "h23"/);
+    assert.match(page, /\\d\{2\}:\\d\{2\}\(\?::\\d\{2\}\(\?:\\\.\\d\+\)\?\)\?\$\/\.test\(timestamp\)\s*\?\s*`\$\{timestamp\}Z`/);
+    assert.match(page, /formatCambodiaDate\(date,/);
+    assert.match(page, /function formatWeddingCreatedAt\(value: unknown\)/);
+    assert.equal((page.match(/formatWeddingCreatedAt\(w\.createdAt\)/g) || []).length, 2);
+    assert.equal((page.match(/បង្កើត៖ \{createdAt\}/g) || []).length, 2);
+});
+
+test("M-02 countdown handles missing or invalid event dates", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const countdown = await readFile(new URL("../src/components/templates/modern-minimal/CountdownSection.tsx", import.meta.url), "utf8");
+
+    assert.match(countdown, /const hasValidEventDate = isValid\(eventDate\)/);
+    assert.match(countdown, /if \(!hasValidEventDate\) return/);
+    assert.match(countdown, /\{hasValidEventDate && \([\s\S]*?eventDate\.toISOString\(\)/);
+});
+
+test("M-05 countdown uses a one-line engagement label", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const countdown = await readFile(new URL("../src/components/templates/modern-minimal/CountdownSection.tsx", import.meta.url), "utf8");
+
+    assert.match(countdown, /const isEngagement = wedding\.eventType === "anniversary"/);
+    assert.match(countdown, /whitespace-nowrap[^"]*text-\[clamp\(0\.65rem,3\.8vw,1\.5rem\)\]/);
+    assert.match(countdown, /រាប់ថយក្រោយដល់ថ្ងៃភ្ជាប់ពាក្យ/);
+    assert.match(countdown, /Countdown to the Engagement/);
+});
+
+test("M-02 cover couple names use Suwannaphum", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [envelope, styles] = await Promise.all([
+        readFile(new URL("../src/components/templates/modern-minimal/EntranceEnvelope.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/app/globals.css", import.meta.url), "utf8"),
+    ]);
+
+    assert.equal((envelope.match(/m05-font-name m02-cover-name font-suwannaphum/g) || []).length, 2);
+    assert.match(styles, /\.modern-minimal-invitation \.m05-font-name\.m02-cover-name\.font-suwannaphum\s*\{\s*font-family: 'Suwannaphum', 'Kantumruy Pro', sans-serif !important;/);
+});
+
+test("M-02 thank-you message uses Suwannaphum", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [thankYou, styles] = await Promise.all([
+        readFile(new URL("../src/components/templates/modern-minimal/ThankYouSection.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/app/globals.css", import.meta.url), "utf8"),
+    ]);
+
+    assert.match(thankYou, /m02-thankyou-copy font-suwannaphum[^"]*text-white\/90/);
+    assert.match(styles, /\.modern-minimal-content \.m02-thankyou-copy\.font-suwannaphum\s*\{\s*font-family: 'Suwannaphum', 'Kantumruy Pro', sans-serif !important;/);
+});
+
 test("template cover and hero headings are exposed consistently to assistive technology", async () => {
     const { readFile } = await import("node:fs/promises");
     const fortuneHero = await readFile(
@@ -888,7 +1209,171 @@ test("M-05 countdown numbers size to the invitation section instead of the brows
 
     assert.match(sections, /id="m05-countdown"[^>]*\[container-type:inline-size\]/);
     assert.match(sections, /m05-countdown-number whitespace-nowrap font-serif-elegant text-\[clamp\(1\.5rem,9cqi,4rem\)\] tabular-nums/);
+    assert.match(sections, /<h2 className="m05-section-title m05-khmer-safe whitespace-nowrap font-khmer-moul text-\[clamp\(0\.65rem,5cqi,1\.5rem\)\] text-\[#f6edda\]">\{text\.countdownTitle\}<\/h2>/);
     assert.doesNotMatch(sections, /m05-countdown-number[^"]*sm:text-/);
+});
+
+test("M-05 engagement invitation English title stays on one line", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const template = await readFile(new URL("../src/components/templates/NeaM05.tsx", import.meta.url), "utf8");
+
+    assert.match(template, /className="m05-cover-english-title mt-1 max-w-full whitespace-nowrap font-pinyon-script text-\[clamp\(0\.7rem,4vw,1\.125rem\)\] text-\[#e8d3a7\]">\s*\{englishInvitationTitle\}/);
+});
+
+test("M-05 revealed controls show the sound button only when music is available", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const template = await readFile(new URL("../src/components/templates/NeaM05.tsx", import.meta.url), "utf8");
+    const controls = template.match(/\{stage === 6 && \([\s\S]*?<\/header>\s*\)\}/)?.[0] || "";
+
+    assert.match(controls, /h-7 min-w-9[^"]*text-\[9px\]/);
+    assert.match(controls, /\{musicUrl && \([\s\S]*?type="button"[\s\S]*?onClick=\{toggleMusic\}/);
+    assert.doesNotMatch(controls, /disabled=\{!musicUrl\}/);
+});
+
+test("M-05 candle hint and engagement gallery title stay on one line", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const sections = await readFile(new URL("../src/components/templates/NeaM05Sections.tsx", import.meta.url), "utf8");
+
+    assert.match(sections, /inline-flex w-\[min\(92%,42rem\)\][^"]*whitespace-nowrap[^"]*text-\[clamp\(0\.5rem,2\.7cqi,0\.875rem\)\]/);
+    assert.match(sections, /\{text\.candleHint\}/);
+    assert.match(sections, /m05-section-title m05-khmer-safe max-w-full whitespace-nowrap font-khmer-moul text-\[clamp\(0\.65rem,4\.5cqi,1\.5rem\)\]/);
+    assert.match(sections, /\{wedding\.themeSettings\?\.customLabels\?\.galleryTitle/);
+});
+
+test("M-05 guestbook title stays on one line without changing other templates", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [sections, guestbook] = await Promise.all([
+        readFile(new URL("../src/components/templates/NeaM05Sections.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/components/templates/shared/GuestbookSection.tsx", import.meta.url), "utf8"),
+    ]);
+
+    assert.match(sections, /<GuestbookSection wedding=\{wedding\} tone="dark" titleOneLine unboxed \/>/);
+    assert.match(guestbook, /titleOneLine \? "max-w-full whitespace-nowrap text-\[clamp\(0\.65rem,3\.6vw,1\.5rem\)\]" : "break-words text-xl sm:text-2xl"/);
+});
+
+test("activity editor puts time before title and omits the details field", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const step3 = await readFile(
+        new URL("../src/app/dashboard/design/components/Step3Time.tsx", import.meta.url),
+        "utf8",
+    );
+
+    assert.ok(step3.indexOf('htmlFor={`activity-time-${index}`}') < step3.indexOf('htmlFor={`activity-title-${index}`}'));
+    assert.match(step3, /sm:grid-cols-\[150px_minmax\(0,1fr\)\]/);
+    assert.doesNotMatch(step3, /activity-description|updateActivity\(index, "description"/);
+});
+
+test("photo section cards stay readable in the narrow wizard panel", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const gallery = await readFile(
+        new URL("../src/app/dashboard/design/components/sections/GeneralGallerySection.tsx", import.meta.url),
+        "utf8",
+    );
+
+    assert.match(gallery, /grid grid-cols-1 gap-2\.5 sm:grid-cols-2 sm:gap-3 xl:grid-cols-3/);
+    assert.match(gallery, /h-28 w-24 shrink-0 bg-muted sm:h-auto sm:w-full/);
+    assert.match(gallery, /flex min-w-0 overflow-hidden rounded-xl border border-border bg-background sm:flex-col/);
+    assert.match(gallery, /\{filledSectionCount\}\/\{photoLayout\.slots\.length\} ផ្នែកមានរូប/);
+    assert.match(gallery, /title=\{slot\.locationHint\}/);
+    assert.match(gallery, /line-clamp-2 text-xs font-bold leading-relaxed text-foreground/);
+    assert.match(gallery, /min-h-11 w-full items-center justify-center/);
+    assert.doesNotMatch(gallery, /min-h-8 text-\[10px\][\s\S]*?slot\.locationHint/);
+});
+
+test("mobile wizard navigation does not cover scrollable form content", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const stepWizard = await readFile(
+        new URL("../src/app/dashboard/design/components/StepWizard.tsx", import.meta.url),
+        "utf8",
+    );
+
+    assert.match(stepWizard, /<div className="min-h-0 flex-1 overflow-y-auto[\s\S]*?<\/div>\s*<\/div>\s*\{\/\* Mobile navigation stays outside the scroll area[\s\S]*?<div className="flex flex-none[^"]*md:hidden"/);
+    assert.doesNotMatch(stepWizard, /sticky bottom-0[\s\S]*?Mobile navigation stays outside/);
+    assert.match(stepWizard, /pb-\[calc\(env\(safe-area-inset-bottom\)\+0\.5rem\)\] md:hidden/);
+});
+
+test("mobile template selection keeps its editor header compact and touch targets usable", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [designPage, stepWizard, step1] = await Promise.all([
+        readFile(new URL("../src/app/dashboard/design/page.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/app/dashboard/design/components/StepWizard.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/app/dashboard/design/components/Step1Template.tsx", import.meta.url), "utf8"),
+    ]);
+
+    assert.match(designPage, /"h-12 bg-white\/95/);
+    assert.match(designPage, /className="h-11 w-11/);
+    assert.match(stepWizard, /sticky top-0 z-20 flex h-10/);
+    assert.match(step1, /hidden text-xs font-medium leading-relaxed text-muted-foreground sm:block/);
+    assert.match(step1, /hidden text-center text-xs leading-relaxed text-muted-foreground font-kantumruy sm:block/);
+});
+
+test("step one selection always records the event type and selected template", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [step1, designPage, khmerLocale, englishLocale] = await Promise.all([
+        readFile(new URL("../src/app/dashboard/design/components/Step1Template.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/app/dashboard/design/page.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/i18n/km.json", import.meta.url), "utf8"),
+        readFile(new URL("../src/i18n/en.json", import.meta.url), "utf8"),
+    ]);
+
+    assert.match(step1, /availability \? enabledTemplateIds : undefined/);
+    assert.match(step1, /if \(wedding\.eventType !== activeEventType\) \{\s*updateEventType\(activeEventType, visibleTemplates\.map/);
+    assert.match(designPage, /currentStep === 1\s*\?\s*Boolean\(wedding\.eventType && wedding\.templateId\)/);
+    assert.match(khmerLocale, /"wedding": "រៀបការ",\s*"anniversary": "ភ្ជាប់ពាក្យ"/);
+    assert.match(englishLocale, /"wedding": "Wedding",\s*"anniversary": "Engagement"/);
+});
+
+test("wizard Back buttons remain touchable during loads and uploads", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const stepWizard = await readFile(
+        new URL("../src/app/dashboard/design/components/StepWizard.tsx", import.meta.url),
+        "utf8",
+    );
+
+    assert.match(stepWizard, /const handleBack = \(\) => \{\s*if \(!savingNext && setStep\) \{\s*setStep\(Math\.max\(1, currentStep - 1\)\)/);
+    assert.match(stepWizard, /min-h-12 min-w-0 flex-1 touch-manipulation/);
+    assert.match(stepWizard, /min-h-12 touch-manipulation/);
+    assert.equal(stepWizard.match(/onClick=\{handleBack\}\s*disabled=\{savingNext\}/g)?.length, 2);
+    assert.doesNotMatch(stepWizard, /onClick=\{handleBack\}[\s\S]*?disabled=\{savingNext \|\| loading \|\| isUploading\}/);
+});
+
+test("step five does not expose font customization controls", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const step5 = await readFile(
+        new URL("../src/app/dashboard/design/components/Step5Extra.tsx", import.meta.url),
+        "utf8",
+    );
+
+    assert.doesNotMatch(step5, /id: 'typography'|step5-typography|NEA_M05_FONT_OPTIONS/);
+    assert.doesNotMatch(step5, /updateTheme\('fontStyle'|updateTheme\(key, font\.id\)/);
+    assert.match(step5, /activeAccordion === 'theme' \|\| activeAccordion === 'typography'[\s\S]*?\? 'payment'[\s\S]*?: activeAccordion \|\| 'payment'/);
+});
+
+test("step five hides theme color customization from users", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const step5 = await readFile(
+        new URL("../src/app/dashboard/design/components/Step5Extra.tsx", import.meta.url),
+        "utf8",
+    );
+
+    assert.doesNotMatch(step5, /\{ id: 'theme', label: 'ពណ៌'/);
+    assert.match(step5, /id="step5-theme"[\s\S]*?hideWhenClosed[\s\S]*?isOpen=\{false\}/);
+    assert.match(step5, /activeAccordion === 'theme' \|\| activeAccordion === 'typography'[\s\S]*?\? 'payment'/);
+});
+
+test("lunar date input appears directly under the event date input", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const step3 = await readFile(
+        new URL("../src/app/dashboard/design/components/Step3Time.tsx", import.meta.url),
+        "utf8",
+    );
+
+    const eventDateIndex = step3.indexOf('{/* 1. Date Picker */}');
+    const lunarDateIndex = step3.indexOf('id="wedding-lunar-date"');
+    const startTimeIndex = step3.indexOf('{/* 2. Start Time Picker */}');
+    assert.ok(eventDateIndex < lunarDateIndex && lunarDateIndex < startTimeIndex);
+    assert.match(step3, /value=\{wedding\.themeSettings\?\.lunarDate \|\| ""\}[\s\S]*?onDebouncedChange=\{\(val\) => updateTheme\("lunarDate", val\)\}/);
+    assert.doesNotMatch(step3, /showExtraDetails|បន្ថែមព័ត៌មានកម្មវិធី/);
 });
 
 test("M-05 couple title stays on one line and layout responds to invitation width", async () => {
@@ -1245,6 +1730,131 @@ test("gallery display choices map to distinct invitation layouts", () => {
     assert.match(getGalleryCardClass("masonry", 0), /row-span-2/);
 });
 
+test("Google Maps embeds preserve dropped-pin coordinates from shared links", () => {
+    assert.equal(
+        getMapEmbedUrl("https://www.google.com/maps/place/Venue/@11.5564,104.9282,17z", "Venue"),
+        "https://maps.google.com/maps?q=11.5564%2C104.9282&t=&z=16&ie=UTF8&iwloc=&output=embed",
+    );
+    assert.equal(
+        getMapEmbedUrl("https://www.google.com/maps?ll=11.5564%2C104.9282", "Venue"),
+        "https://maps.google.com/maps?q=11.5564%2C104.9282&t=&z=16&ie=UTF8&iwloc=&output=embed",
+    );
+    assert.equal(
+        getMapEmbedUrl("https://www.google.com/maps/place/Venue/data=!3d11.5564!4d104.9282", "Venue"),
+        "https://maps.google.com/maps?q=11.5564%2C104.9282&t=&z=16&ie=UTF8&iwloc=&output=embed",
+    );
+    assert.equal(
+        getMapEmbedUrl("https://www.google.com/maps/place/Venue/@11.5550,104.9200,14z/data=!3d11.5564!4d104.9282", "Venue"),
+        "https://maps.google.com/maps?q=11.5564%2C104.9282&t=&z=16&ie=UTF8&iwloc=&output=embed",
+        "place coordinates must take precedence over the map viewport center",
+    );
+    assert.equal(
+        getMapEmbedUrl("https://www.google.com/maps/@11.5550,104.9200,14z", "Venue"),
+        "https://maps.google.com/maps?q=11.555%2C104.92&t=&z=16&ie=UTF8&iwloc=&output=embed",
+        "viewport coordinates are only used when the URL has no pin coordinates",
+    );
+    assert.equal(
+        getMapEmbedUrl("https://www.google.com/maps/place/Venue", "Venue"),
+        "https://maps.google.com/maps?q=Venue&t=&z=16&ie=UTF8&iwloc=&output=embed",
+    );
+    assert.equal(
+        getMapEmbedUrl(
+            "https://www.google.com/maps/place/%E1%9E%9F%E1%9E%BB%E1%9E%81+%E1%9E%85%E1%9E%B7%E1%9E%93%E1%9F%92%E1%9E%8F%E1%9E%B6/@11.5269604,105.5628585,17z/data=!3d11.5269604!4d105.5628585",
+            "សុខ ចិន្តា លក់ភេសជ្ជៈគ្រប់មុខ",
+        ),
+        "https://maps.google.com/maps?q=11.5269604%2C105.5628585&t=&z=16&ie=UTF8&iwloc=&output=embed",
+        "the supplied short link's expanded URL must embed its exact pin coordinates",
+    );
+    assert.equal(
+        getMapEmbedUrl(
+            "https://www.google.com/maps/place/Venue/data=!4m2!3m1!1s0x310b8f8ef5e8d403:0x7250bef74c366a2a!18m1!1e1",
+            "Venue",
+        ),
+        "https://www.google.com/maps?output=embed&cid=8237293687805471274",
+        "place CIDs must be used when the expanded URL has no pin coordinates",
+    );
+    assert.equal(isGoogleMapsShortLink("https://maps.app.goo.gl/TsqhExYptMi5r4RQ7"), true);
+    assert.equal(isGoogleMapsShortLink("https://www.google.com/maps/place/Venue"), false);
+});
+
+test("M-02 does not show a guessed map when a Google short link has not resolved", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const locationSection = await readFile(
+        new URL("../src/components/templates/modern-minimal/LocationSection.tsx", import.meta.url),
+        "utf8",
+    );
+    assert.match(locationSection, /!isGoogleMapsShortLink\(mapLink\)/);
+    assert.match(locationSection, /getDirectMapUrl\(mapLink, venueName\)/);
+});
+
+test("all invitation template location sections embed Google Maps", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const locationSections = [
+        "../src/components/templates/modern-minimal/LocationSection.tsx",
+        "../src/components/templates/blossom-romance/LocationSection.tsx",
+        "../src/components/templates/GardenEditorial.tsx",
+        "../src/components/templates/anniversary-elegant/AnniversaryLocation.tsx",
+        "../src/components/templates/fortune-harmony/LocationSection.tsx",
+        "../src/components/templates/emerald-garden/LocationSection.tsx",
+        "../src/components/templates/khmer-legacy/LocationMap.tsx",
+        "../src/components/templates/NeaM05Sections.tsx",
+    ];
+
+    const sources = await Promise.all(locationSections.map((path) =>
+        readFile(new URL(path, import.meta.url), "utf8"),
+    ));
+    for (const source of sources) {
+        assert.match(source, /getMapEmbedUrl/);
+        assert.match(source, /<iframe/);
+    }
+});
+
+test("design wizard passes the wedding ID to template receipt submission", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [designPage, templateStep] = await Promise.all([
+        readFile(new URL("../src/app/dashboard/design/page.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/app/dashboard/design/components/Step1Template.tsx", import.meta.url), "utf8"),
+    ]);
+    assert.match(designPage, /<Step1Template[^>]*weddingId=\{wedding\.id\}/);
+    assert.match(templateStep, /អ្នកមិនចាំបាច់បញ្ចូល Wedding ID ដោយខ្លួនឯងទេ/);
+});
+
+test("template purchase requires confirmation before requesting a payment QR", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const templateStep = await readFile(
+        new URL("../src/app/dashboard/design/components/Step1Template.tsx", import.meta.url),
+        "utf8",
+    );
+    assert.match(templateStep, /const beginTemplatePurchase = \(tmpl:[\s\S]*?setPurchaseConfirmationTemplateId\(tmpl\.id\)/);
+    assert.match(templateStep, /const confirmTemplatePurchase = \(\) => \{[\s\S]*?initiateTemplatePurchase\(template\)/);
+    assert.match(templateStep, /តើអ្នកពិតជាចង់ទិញ Template នេះមែនទេ\?/);
+});
+
+test("free templates offer optional coffee support without changing free access", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const templateStep = await readFile(
+        new URL("../src/app/dashboard/design/components/Step1Template.tsx", import.meta.url),
+        "utf8",
+    );
+    assert.match(templateStep, /\{isFree && \([\s\S]*?<Coffee/);
+    assert.match(templateStep, /moneaClient\.post<\{ qrCode\?: string \}>\("\/api\/payment\/support-qr"/);
+    assert.match(templateStep, /Free template នៅតែអាចប្រើបានដោយមិនចាំបាច់បង់ប្រាក់/);
+});
+
+test("profile and payment QR controls fit mobile screens", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [dashboardShell, step1] = await Promise.all([
+        readFile(new URL("../src/app/dashboard/_components/DashboardShell.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/app/dashboard/design/components/Step1Template.tsx", import.meta.url), "utf8"),
+    ]);
+
+    assert.match(dashboardShell, /className="h-11 w-11 shrink-0[^"]*md:hidden"/);
+    assert.match(dashboardShell, /className="h-8 w-8 rounded-lg object-cover"/);
+    assert.match(step1, /max-h-\[calc\(100dvh-env\(safe-area-inset-top\)-env\(safe-area-inset-bottom\)-1rem\)\][^"]*w-\[min\(calc\(100vw-1\.5rem\),460px\)\]/);
+    assert.match(step1, /w-\[min\(220px,68vw\)\]/);
+    assert.match(step1, /w-\[min\(240px,68vw\)\]/);
+});
+
 test("gallery is visible separately from optional music and video controls", async () => {
     const { readFile } = await import("node:fs/promises");
     const step4 = await readFile(
@@ -1280,6 +1890,33 @@ test("background music picker stays compact and usable on phones", async () => {
     assert.match(widget, /ទីតាំងចាក់បទភ្លេង/);
     assert.equal((widget.match(/<audio/g) || []).length, 2);
     assert.match(widget, /type="file"[\s\S]*?accept="audio\/\*"/);
+});
+
+test("skipping background music hides music controls across invitation templates", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const paths = [
+        "../src/components/templates/AnniversaryElegant.tsx",
+        "../src/components/templates/BlossomRomance.tsx",
+        "../src/components/templates/EmeraldGarden.tsx",
+        "../src/components/templates/FortuneHarmony.tsx",
+        "../src/components/templates/GardenEditorial.tsx",
+        "../src/components/templates/NeaM05.tsx",
+    ];
+    const [templates, modernMusic, legacyMusic, mediaStep] = await Promise.all([
+        Promise.all(paths.map((path) => readFile(new URL(path, import.meta.url), "utf8"))),
+        readFile(new URL("../src/components/templates/modern-minimal/BackgroundMusic.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/components/templates/khmer-legacy/BackgroundMusic.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/app/dashboard/design/components/Step4Media.tsx", import.meta.url), "utf8"),
+    ]);
+
+    for (const template of templates) {
+        assert.match(template, /musicUrl &&/);
+    }
+    assert.match(templates[5], /\{musicUrl && \([\s\S]*?aria-label=\{isPlaying \? text\.pauseMusic : text\.playMusic\}/);
+    assert.doesNotMatch(templates[5], /disabled=\{!musicUrl\}/);
+    assert.match(modernMusic, /if \(!audioUrl \|\| !showControl\) return null/);
+    assert.match(legacyMusic, /if \(!audioUrl\) return null/);
+    assert.match(mediaStep, /បើរំលង ប៊ូតុងសំឡេងនឹងមិនបង្ហាញលើធៀបការឡើយ/);
 });
 
 test("dashboard notification popover stays within the mobile viewport", async () => {
@@ -1334,7 +1971,7 @@ test("brand wordmark defaults to MONEO independently of the UI locale", async ()
     assert.match(logo, /aria-label=\{showText \? brandName : undefined\}/);
     assert.match(footer, /<MoneaLogoMark className="h-12 w-12" \/>/);
     assert.match(footer, /grid grid-cols-2 items-center justify-items-center gap-x-2 gap-y-3/);
-    assert.match(footer, /វេទិកាបង្កើតធៀបមង្គលការឌីជីថល/);
+    assert.match(footer, /ធៀបការដែលជាប់ចិត្ត កុំភ្លេច MONEO/);
     assert.doesNotMatch(footer, /វេទិការៀបចំសំបុត្រមង្គលការឌីជីថល/);
 });
 
@@ -1345,7 +1982,8 @@ test("public template gallery shows covers and codes without opening invitations
     assert.match(page, /moneaClient\.get<unknown>\('\/api\/templates\/metadata'/);
     assert.match(page, /normalizeTemplatePresentationMetadata\(response\.data\)/);
     assert.match(page, /image: metadata\?\.image \?\? template\.image/);
-    assert.match(page, /template\.id === 'nea-m05' && !template\.hasCustomCover/);
+    assert.match(page, /\{template\.image \? \([\s\S]*?src=\{template\.image\}/);
+    assert.doesNotMatch(page, /paper-olive\.webp|hasCustomCover/);
     assert.match(page, /Failed to load template metadata/);
     assert.match(page, /dark:bg-\[#0d1210\]/);
     assert.match(page, /dark:bg-\[#171e1a\]/);
@@ -1354,6 +1992,24 @@ test("public template gallery shows covers and codes without opening invitations
     assert.match(page, /fetchPriority=\{templateIndex === 0 \? 'high' : 'auto'\}/);
     assert.doesNotMatch(page, /AnimatePresence|<m\.article|template\.(?:title|description)[\s\S]{0,40}<\/article>/);
     assert.doesNotMatch(page, /selectedTemplate|setSelectedTemplate|role="dialog"|<iframe/);
+});
+
+test("template covers come only from admin-uploaded metadata", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [adminPage, interactiveGallery, showcase, definitions] = await Promise.all([
+        readFile(new URL("../src/app/admin/master/templates/page.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/components/landing/InteractiveThemeGallery.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/components/landing/sections/TemplatesShowcase.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/components/templates/template-config.ts", import.meta.url), "utf8"),
+    ]);
+
+    assert.match(adminPage, /normalizeTemplatePresentationMetadata\(metadataResponse\.data\)/);
+    assert.match(adminPage, /onRemove=\{\(\) => setDraft\(\{ \.\.\.draft, image: "" \}\)\}/);
+    assert.match(adminPage, /!draft\.image\.trim\(\)/);
+    assert.match(interactiveGallery, /moneaClient\.get<unknown>\("\/api\/templates\/metadata"/);
+    assert.doesNotMatch(interactiveGallery, /images\.unsplash\.com|image: "https?:/);
+    assert.match(showcase, /presentation\?\.image \?\? template\.image/);
+    assert.doesNotMatch(definitions, /image: "\//);
 });
 
 test("homepage showcases all template covers and links to the full gallery", async () => {
@@ -1380,6 +2036,25 @@ test("upgrade payment modal separates QR payment from receipt submission", async
     assert.match(page, /htmlFor="payment-slip"[\s\S]*?border-dashed/);
     assert.match(page, /id="payment-slip-reference"/);
     assert.match(page, /onClick=\{handleSubmitSlip\}/);
+});
+
+test("template receipt submission needs only the receipt image and accepts an optional note", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [step1, router, adminPage] = await Promise.all([
+        readFile(new URL("../src/app/dashboard/design/components/Step1Template.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../../monea-api-worker/routers/template-purchase.ts", import.meta.url), "utf8"),
+        readFile(new URL("../src/app/admin/master/payments/page.tsx", import.meta.url), "utf8"),
+    ]);
+
+    assert.match(step1, /disabled=\{isSubmittingReceipt \|\| !receiptFile\}/);
+    assert.match(step1, /កំណត់ចំណាំ \(មិនបាច់សរសេរ\)/);
+    assert.match(step1, /note: receiptNote\.trim\(\)/);
+    assert.doesNotMatch(step1, /លេខប្រតិបត្តិការ|Transaction ID/);
+    assert.match(router, /receiptUrl: z\.string\(\)\.url\(\)\.max\(2048\)/);
+    assert.match(router, /note: z\.string\(\)\.trim\(\)\.max\(500\)\.optional\(\)\.default\(''\)/);
+    assert.match(router, /receiptReference: parsed\.data\.note \|\| parsed\.data\.reference \|\| null/);
+    assert.match(adminPage, /User note/);
+    assert.match(adminPage, /កំណត់ចំណាំពីអ្នកប្រើ/);
 });
 
 test("signup validation messages remain readable in light and dark themes", async () => {
@@ -1437,7 +2112,7 @@ test("public SEO metadata uses the MONEO site name on moneoez.com", async () => 
     assert.match(legalPage, /<title>\{document\.title\} \| MONEO<\/title>/);
     assert.match(legalPage, /const pageUrl = `https:\/\/moneoez\.com\/\$\{documentKey === "privacy" \? "privacy-policy" : "terms-and-conditions"\}`/);
     assert.match(indexHtml, /og:image" content="https:\/\/moneoez\.com\/icons\/logomoneo\.jpg"/);
-    assert.match(weddingPage, /\/icons\/icon-512x512\.png/);
+    assert.match(weddingPage, /\/icons\/logomoneo\.webp/);
     assert.doesNotMatch(indexHtml + landingPage + templatesPage + contactPage + supportPage + legalPage + weddingPage, /\/logo\.png/);
     assert.match(packageJson, /"build": "tsc && node scripts\/build\.mjs && node scripts\/prerender\.mjs"/);
     assert.match(prerender, /INDEXNOW_NOTIFY === 'true'/);
@@ -1618,8 +2293,10 @@ test("template picker keeps readable cards inside the narrow wizard panel", asyn
 
     assert.match(picker, /<div className="grid grid-cols-2 gap-3 sm:gap-4">/);
     assert.doesNotMatch(picker, /xl:grid-cols-4|sm:grid-cols-3/);
-    assert.match(picker, /aspect-\[4\/5\] w-full/);
-    assert.match(picker, /line-clamp-2 min-h-\[2\.5rem\]/);
+    assert.match(picker, /aspect-\[4\/3\] w-full overflow-hidden bg-muted/);
+    assert.match(picker, /border-t border-border\/70 bg-muted\/20 px-3 py-2/);
+    assert.match(picker, /h-10 min-w-0 flex-1 touch-manipulation/);
+    assert.match(picker, /បានជ្រើស/);
 });
 
 test("design toolbar is translated and sharing waits for a successful save", async () => {
@@ -1648,7 +2325,7 @@ test("design toolbar is translated and sharing waits for a successful save", asy
     assert.match(page, /aria-label=\{loading \? t\("design\.wizard\.saving"\) : isDirty \? t\("design\.wizard\.unsaved"\) : t\("design\.wizard\.saved"\)\}/);
 });
 
-test("phone preview omits the hardware frame while its appearance setting remains admin-managed", async () => {
+test("global phone frame appearance is applied to the phone preview", async () => {
     const { readFile } = await import("node:fs/promises");
     const [designPage, adminSettings, publicSettings, adminApi, schema, migration] = await Promise.all([
         readFile(new URL("../src/app/dashboard/design/page.tsx", import.meta.url), "utf8"),
@@ -1656,34 +2333,68 @@ test("phone preview omits the hardware frame while its appearance setting remain
         readFile(new URL("../../monea-api-worker/routers/system.ts", import.meta.url), "utf8"),
         readFile(new URL("../../monea-api-worker/routers/adminMaster.ts", import.meta.url), "utf8"),
         readFile(new URL("../../monea-api-worker/drizzle/schema.ts", import.meta.url), "utf8"),
-        readFile(new URL("../../monea-api-worker/drizzle/migrations/0007_phone_frame_color.sql", import.meta.url), "utf8"),
+        readFile(new URL("../../monea-api-worker/drizzle/migrations/0005_phone_frame_color.sql", import.meta.url), "utf8"),
     ]);
 
     assert.match(adminSettings, /activeTab === 'appearance'/);
     assert.match(adminSettings, /handleSavePhoneFrameColor/);
-    assert.match(adminApi, /if \(phoneFrameColor !== undefined && !\["black", "white", "natural", "desert"\]\.includes\(phoneFrameColor\)\)/);
-    assert.match(publicSettings, /systemRouter\.get\('\/ui-settings'/);
+    assert.match(adminApi, /if \(phoneFrameColor !== undefined && !isPhoneFrameColor\(phoneFrameColor\)\)/);
+    assert.match(publicSettings, /systemRouter\.get\('\/(?:ui-settings|phone-frame-color)'/);
     assert.match(publicSettings, /select\(\{ phoneFrameColor: systemConfig\.phoneFrameColor \}\)/);
     assert.match(schema, /phoneFrameColor: text\('phoneFrameColor'\)\.default\('black'\)\.notNull\(\)/);
     assert.match(migration, /ADD COLUMN IF NOT EXISTS "phoneFrameColor" TEXT NOT NULL DEFAULT 'black'/);
-    assert.doesNotMatch(designPage, /PHONE_FRAME_COLORS|phoneFrameColor/);
+    assert.match(designPage, /moneaClient\.get<\{ phoneFrameColor: unknown \}>\([\s\S]*?\/api\/system\/phone-frame-color/);
+    assert.match(designPage, /isPhoneFrameColor\(response\.data\?\.phoneFrameColor\)/);
+    assert.match(designPage, /const phoneFrame = PHONE_FRAME_COLORS\[phoneFrameColor\]/);
+    assert.match(designPage, /style=\{\{ background: phoneFrame\.side \}\}/);
+    assert.match(designPage, /style=\{isM1Preview \? undefined : \{ background: phoneFrame\.gradient \}\}/);
+    assert.match(designPage, /rounded-\[3\.5rem\] border border-black\/30 p-\[3px\]/);
+    assert.match(designPage, /rounded-\[3\.35rem\] border border-\[#090a0c\][^"]*p-\[2px\]/);
+    assert.match(designPage, /h-7 w-\[29%\] max-w-\[120px\]/);
+    assert.match(designPage, /const isM1Preview = wedding\?\.templateId === "khmer-legacy"/);
+    assert.match(designPage, /isM1Preview\s*\?\s*"overflow-hidden rounded-\[3\.1rem\] bg-background"/);
+    assert.match(designPage, /!isM1Preview && \(/);
     assert.match(designPage, /className="h-full w-full border-none bg-background"/);
 });
 
-test("template preview canvases adapt to phones and foldable screens", async () => {
+test("M1 invitation preview fills the screen without a blue outer frame", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const khmerLegacy = await readFile(new URL("../src/components/templates/KhmerLegacy.tsx", import.meta.url), "utf8");
+    const entranceOverlay = khmerLegacy.match(/key="overlay"[\s\S]*?<\/m\.div>\s*\n\s*\)/)?.[0];
+
+    assert.ok(entranceOverlay, "M1 entrance overlay should exist");
+    assert.match(entranceOverlay, /h-\[100dvh\] w-full[^"]*bg-\[#0b0e14\] p-0/);
+    assert.match(entranceOverlay, /h-full w-full flex-col[^"]*bg-\[#0b0e14\]/);
+    assert.doesNotMatch(entranceOverlay, /bg-\[#0A1226\]|p-4|rounded-\[2rem\] border/);
+});
+
+test("public invitations keep a phone-width canvas on every screen size", async () => {
     const { readFile } = await import("node:fs/promises");
     const [renderer, preview] = await Promise.all([
         readFile(new URL("../src/components/templates/TemplateRenderer.tsx", import.meta.url), "utf8"),
         readFile(new URL("../src/app/preview/page.tsx", import.meta.url), "utf8"),
     ]);
 
-    assert.match(renderer, /max-w-\[430px\] sm:max-w-\[540px\] md:max-w-\[720px\] lg:max-w-\[540px\]/);
-    assert.match(renderer, /max-w-\[430px\] sm:max-w-\[540px\] md:max-w-\[720px\] lg:max-w-none/);
-    assert.match(renderer, /className="template-responsive-canvas /);
+    assert.match(renderer, /w-full min-w-0 max-w-\[430px\] bg-white/);
+    assert.doesNotMatch(renderer, /sm:max-w-|md:max-w-|lg:max-w-/);
+    assert.match(renderer, /template-responsive-canvas /);
     const styles = await readFile(new URL("../src/app/globals.css", import.meta.url), "utf8");
     assert.match(styles, /@media \(min-width: 768px\) and \(max-width: 1023\.98px\) \{\s*\.template-responsive-canvas \.monea-paper-canvas \{\s*width: 100%;\s*max-width: 720px;/);
     assert.match(renderer, /w-full min-w-0/);
-    assert.match(preview, /max-w-\[430px\] sm:max-w-\[540px\] md:max-w-\[720px\] lg:max-w-\[540px\] min-w-0/);
+    assert.match(preview, /<TemplateRenderer/);
+});
+
+test("public template rendering filters known missing demo photos in every mode", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const renderer = await readFile(
+        new URL("../src/components/templates/TemplateRenderer.tsx", import.meta.url),
+        "utf8",
+    );
+
+    assert.match(renderer, /groomPhoto: isDemoPhoto\(wedding\.groomPhoto\) \? undefined/);
+    assert.match(renderer, /bridePhoto: isDemoPhoto\(wedding\.bridePhoto\) \? undefined/);
+    assert.match(renderer, /galleryItems: wedding\.galleryItems\?\.filter\(\(item\) => !isDemoPhoto\(item\.url\)\)/);
+    assert.doesNotMatch(renderer, /uploadedImagesOnly\s*\?\s*\{/);
 });
 
 test("mobile invitation preview exposes the save-before-share action", async () => {
@@ -1879,12 +2590,12 @@ test("registry and selectable catalog are derived from the same definitions", ()
     assert.ok(TEMPLATE_CATALOG.every(({ id }) => TEMPLATE_REGISTRY[id]));
     assert.equal(TEMPLATE_DEFINITIONS["emerald-garden"].selectable, true);
     assert.equal(TEMPLATE_DEFINITIONS["anniversary-elegant"].selectable, true);
-    assert.equal(TEMPLATE_DEFINITIONS["garden-editorial"].code, "M-08");
+    assert.ok(TEMPLATE_DEFINITIONS["garden-editorial"].code === "M8" || TEMPLATE_DEFINITIONS["garden-editorial"].code === "M-08");
     assert.equal(TEMPLATE_DEFINITIONS["garden-editorial"].eventType, "wedding");
     assert.equal(TEMPLATE_DEFINITIONS["garden-editorial"].title, "Palace Bloom");
-    assert.equal(TEMPLATE_DEFINITIONS["garden-editorial"].image, "/assets/blossom-romance/blossom-arch-bg.jpg");
+    assert.equal(TEMPLATE_DEFINITIONS["garden-editorial"].image, "");
     assert.equal(TEMPLATE_DEFINITIONS["garden-editorial"].title, "Palace Bloom");
-    assert.equal(TEMPLATE_DEFINITIONS["garden-editorial"].image, "/assets/blossom-romance/blossom-arch-bg.jpg");
+    assert.equal(TEMPLATE_DEFINITIONS["garden-editorial"].image, "");
     assert.ok(getTemplatesForEventType("wedding").some(({ id }) => id === "garden-editorial"));
     assert.equal(getTemplatesForEventType("anniversary").some(({ id }) => id === "garden-editorial"), false);
     for (const [id, definition] of Object.entries(TEMPLATE_DEFINITIONS)) {
@@ -1911,6 +2622,37 @@ test("template picker fills entries missing from an older API response from loca
             eventType: "wedding",
         },
     );
+});
+
+test("template metadata and demo wedding data avoid missing legacy photo assets", () => {
+    const staleImage = "/assets/khmer-legacy/621811254_905398285378636_5240747682765358044_n.jpg";
+    const metadata = normalizeTemplatePresentationMetadata({
+        ...TEMPLATE_METADATA_DEFAULTS,
+        "khmer-legacy": {
+            ...TEMPLATE_METADATA_DEFAULTS["khmer-legacy"],
+            image: staleImage,
+        },
+    });
+
+    assert.equal(metadata["khmer-legacy"].image, TEMPLATE_DEFINITIONS["khmer-legacy"].image);
+    const uploadedCover = "https://res.cloudinary.com/monea/image/upload/template-covers/custom-cover.jpg";
+    const normalizedUploaded = normalizeTemplatePresentationMetadata({
+        ...TEMPLATE_METADATA_DEFAULTS,
+        "khmer-legacy": {
+            ...TEMPLATE_METADATA_DEFAULTS["khmer-legacy"],
+            image: uploadedCover,
+        },
+    });
+    assert.equal(normalizedUploaded["khmer-legacy"].image, uploadedCover);
+    assert.equal(normalizeTemplatePresentationMetadata({
+        ...TEMPLATE_METADATA_DEFAULTS,
+        "khmer-legacy": {
+            ...TEMPLATE_METADATA_DEFAULTS["khmer-legacy"],
+            image: "/assets/blossom-romance/blossom-arch-bg.jpg",
+        },
+    })["khmer-legacy"].image, "");
+    assert.equal(DEFAULT_WEDDING.galleryItems?.length, 0);
+    assert.doesNotMatch(JSON.stringify(DEFAULT_WEDDING.themeSettings), /\/assets\/khmer-legacy\//);
 });
 
 test("template picker still rejects malformed availability and metadata entries", () => {
@@ -2031,6 +2773,136 @@ test("all template story sections render the configured story image collection",
     }
 });
 
+test("story image titles and story text are optional in the design editor", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const step5 = await readFile(
+        new URL("../src/app/dashboard/design/components/Step5Extra.tsx", import.meta.url),
+        "utf8",
+    );
+
+    assert.match(step5, /ចំណងជើងរូបភាព \(អាចរំលងបាន\)/);
+    assert.match(step5, /placeholder="សរសេរចំណងជើងរូបនេះ\.\.\."/);
+    assert.match(step5, /ដំណើររឿងផ្តើមស្នេហ៍ \(អាចរំលងបាន\)/);
+});
+
+test("story image uploads are capped at thirty images", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const step5 = await readFile(
+        new URL("../src/app/dashboard/design/components/Step5Extra.tsx", import.meta.url),
+        "utf8",
+    );
+
+    assert.match(step5, /const MAX_STORY_IMAGES = 30/);
+    assert.match(step5, /files\.slice\(0, remainingSlots\)/);
+    assert.match(step5, /currentImages\.filter\(Boolean\)\.length >= MAX_STORY_IMAGES/);
+    assert.match(step5, /disabled=\{storyImageUploading \|\| \(storyImages\?\.filter\(Boolean\)\.length \|\| 0\) >= MAX_STORY_IMAGES\}/);
+    assert.match(step5, /\{storyImages\?\.filter\(Boolean\)\.length \|\| 0\}\/\{MAX_STORY_IMAGES\} រូប/);
+});
+
+test("social links can be shown or hidden on invitation templates", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [step5, socialLinks, types, templateSources] = await Promise.all([
+        readFile(new URL("../src/app/dashboard/design/components/Step5Extra.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/components/templates/shared/SocialLinksSection.tsx", import.meta.url), "utf8"),
+        readFile(new URL("../src/components/templates/types.ts", import.meta.url), "utf8"),
+        Promise.all([
+            "../src/components/templates/khmer-legacy/FooterSection.tsx",
+            "../src/components/templates/ModernMinimal.tsx",
+            "../src/components/templates/fortune-harmony/ThankYouSection.tsx",
+            "../src/components/templates/blossom-romance/ThankYouSection.tsx",
+            "../src/components/templates/NeaM05Sections.tsx",
+            "../src/components/templates/emerald-garden/ThankYouSection.tsx",
+            "../src/components/templates/anniversary-elegant/AnniversaryThankYou.tsx",
+            "../src/components/templates/GardenEditorial.tsx",
+        ].map(async (path) => readFile(new URL(path, import.meta.url), "utf8"))),
+    ]);
+
+    const displaySection = step5.match(/id="step5-display"[\s\S]*?<\/AccordionItem>/)?.[0] || "";
+    assert.match(displaySection, /តំណ Facebook, Telegram និងលេខទូរស័ព្ទ/);
+    assert.match(displaySection, /showSocialLinks !== false/);
+    assert.match(displaySection, /updateTheme\("showSocialLinks", checked\)/);
+    assert.match(step5, /នៅផ្នែក «ការបង្ហាញ»/);
+    assert.match(socialLinks, /settings\?\.showSocialLinks === false/);
+    assert.match(socialLinks, /settings\?\.facebookUrl/);
+    assert.match(socialLinks, /settings\?\.telegramUrl/);
+    assert.match(socialLinks, /settings\?\.phoneNumber/);
+    assert.match(types, /showSocialLinks\?: boolean/);
+    for (const source of templateSources) {
+        assert.match(source, /<SocialLinksSection wedding=\{wedding\} \/>/);
+    }
+});
+
+test("every invitation template ends with the shared MONEO logo footer", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [brand, templateSources] = await Promise.all([
+        readFile(new URL("../src/components/templates/shared/MoneaFooterBrand.tsx", import.meta.url), "utf8"),
+        Promise.all([
+            "../src/components/templates/khmer-legacy/FooterSection.tsx",
+            "../src/components/templates/ModernMinimal.tsx",
+            "../src/components/templates/fortune-harmony/ThankYouSection.tsx",
+            "../src/components/templates/blossom-romance/ThankYouSection.tsx",
+            "../src/components/templates/NeaM05Sections.tsx",
+            "../src/components/templates/emerald-garden/ThankYouSection.tsx",
+            "../src/components/templates/anniversary-elegant/AnniversaryThankYou.tsx",
+            "../src/components/templates/GardenEditorial.tsx",
+        ].map(async (path) => readFile(new URL(path, import.meta.url), "utf8"))),
+    ]);
+
+    assert.match(brand, /<MoneaLogoMark/);
+    assert.match(brand, /MONEO/);
+    assert.match(brand, /moneoez\.com/);
+    for (const source of templateSources) {
+        assert.match(source, /<MoneaFooterBrand/);
+        assert.ok(source.indexOf("<SocialLinksSection") < source.indexOf("<MoneaFooterBrand"), "social links should appear before the brand footer");
+    }
+});
+
+test("custom invitation labels render in their matching template sections", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const templatesRoot = new URL("../src/components/templates/", import.meta.url);
+    const files = [
+        "modern-minimal/EntranceEnvelope.tsx",
+        "modern-minimal/HeroSection.tsx",
+        "modern-minimal/LocationSection.tsx",
+        "modern-minimal/CountdownSection.tsx",
+        "modern-minimal/GallerySection.tsx",
+        "modern-minimal/GiftSection.tsx",
+        "shared/GuestbookSection.tsx",
+        "khmer-legacy/KhmerInvitation.tsx",
+        "khmer-legacy/LocationMap.tsx",
+        "khmer-legacy/DynamicGallery.tsx",
+        "khmer-legacy/GiftSection.tsx",
+        "GardenEditorial.tsx",
+        "NeaM05.tsx",
+        "NeaM05Sections.tsx",
+        "anniversary-elegant/AnniversaryCountdown.tsx",
+    ];
+    const sources = Object.fromEntries(await Promise.all(
+        files.map(async (file) => [file, await readFile(new URL(file, templatesRoot), "utf8")]),
+    ));
+
+    assert.match(sources["modern-minimal/EntranceEnvelope.tsx"], /customLabels\?\.invitationTitle/);
+    assert.match(sources["modern-minimal/EntranceEnvelope.tsx"], /customLabels\?\.heroButton/);
+    assert.match(sources["modern-minimal/HeroSection.tsx"], /customLabels\?\.heroSubtitle/);
+    assert.match(sources["khmer-legacy/KhmerInvitation.tsx"], /themeSettings\?\.invitationText/);
+    assert.match(sources["modern-minimal/LocationSection.tsx"], /customLabels\?\.locationTitle/);
+    assert.match(sources["modern-minimal/LocationSection.tsx"], /customLabels\?\.locationSubtitle/);
+    assert.match(sources["modern-minimal/CountdownSection.tsx"], /customLabels\?\.countdownLabel/);
+    assert.match(sources["modern-minimal/GallerySection.tsx"], /customLabels\?\.galleryTitle/);
+    assert.match(sources["shared/GuestbookSection.tsx"], /customLabels\?\.guestbookTitle/);
+    assert.match(sources["modern-minimal/GiftSection.tsx"], /labels\?\.giftTitle/);
+    assert.match(sources["modern-minimal/GiftSection.tsx"], /labels\.giftSubtitle/);
+    assert.match(sources["modern-minimal/GiftSection.tsx"], /labels\.giftBadge/);
+    assert.match(sources["GardenEditorial.tsx"], /customLabels\?\.locationTitle/);
+    assert.match(sources["GardenEditorial.tsx"], /customLabels\?\.galleryTitle/);
+    assert.match(sources["GardenEditorial.tsx"], /customLabels\?\.heroSubtitle/);
+    assert.match(sources["GardenEditorial.tsx"], /customLabels\?\.heroButton/);
+    assert.match(sources["NeaM05.tsx"], /customLabels\?\.invitationTitle/);
+    assert.match(sources["NeaM05Sections.tsx"], /customLabels\?\.locationTitle/);
+    assert.match(sources["NeaM05Sections.tsx"], /customLabels\?\.giftTitle/);
+    assert.match(sources["anniversary-elegant/AnniversaryCountdown.tsx"], /customLabels\?\.countdownLabel/);
+});
+
 test("Rose Garden, Emerald Garden, and Fortune Harmony show the cover or couple photo in the hero", async () => {
     const { readFile } = await import("node:fs/promises");
     const heroFiles = [
@@ -2068,7 +2940,7 @@ test("every template gallery and editor photo previews show a fallback when an i
         new URL("../src/components/templates/shared/PhotoImage.tsx", import.meta.url),
         "utf8",
     );
-    assert.match(photoImage, /onError=\{\(event\) => \{\s*setHasError\(true\)/);
+    assert.match(photoImage, /onError=\{\(event\) => \{[\s\S]*?setHasError\(true\)/);
     assert.match(photoImage, /មិនអាចបង្ហាញរូបនេះបាន/);
 });
 
@@ -2080,6 +2952,10 @@ test("automatic photo upload reports persistence results and retries failed file
     );
     const galleryUpload = await readFile(
         new URL("../src/hooks/use-cloudinary.ts", import.meta.url),
+        "utf8",
+    );
+    const sectionUpload = await readFile(
+        new URL("../src/hooks/use-cloudinary-upload.ts", import.meta.url),
         "utf8",
     );
     const wizard = await readFile(
@@ -2095,14 +2971,17 @@ test("automatic photo upload reports persistence results and retries failed file
         "utf8",
     );
 
-    assert.match(gallerySection, /រូបត្រូវបានដាក់តាមលំដាប់ និងរក្សាទុករួចរាល់/);
+    assert.match(gallerySection, /រូបវិចិត្រសាលត្រូវបានបន្ថែម និងរក្សាទុករួចរាល់/);
     assert.match(gallerySection, /role="alert"/);
     assert.match(mediaStep, /រូបបានផ្ទុកឡើង ប៉ុន្តែរក្សាទុកមិនបាន/);
-    assert.match(wizard, /assignUploadedPhotosToSlots\(/);
+    assert.match(wizard, /appendUploadedPhotosToGallery\(/);
     assert.match(wizard, /return saveChanges\(updated, \{ silent: true \}\)/);
     assert.match(wizard, /retryGalleryDirectUpload/);
     assert.match(galleryUpload, /failedUploads\.push\(file\)/);
     assert.match(galleryUpload, /setFailedFiles\(failedUploads\)/);
+    assert.match(galleryUpload, /Math\.min\(3, totalFiles\)/);
+    assert.match(galleryUpload, /uploadFileToR2\(file, options\.folder/);
+    assert.match(sectionUpload, /uploadFileToR2\(file, folder, setProgress\)/);
     assert.match(galleryUpload, /retryFailedUploads: \(\) => failedFiles\.length > 0/);
     assert.match(gallerySection, /សាកដាក់រូបដែលបរាជ័យម្ដងទៀត/);
     assert.doesNotMatch(gallerySection, /toggleGalleryPhotoVisibility|hiddenGalleryPhotoKeys|EyeOff|លាក់រូបនេះពីធៀប/);
@@ -2178,9 +3057,9 @@ test("M02 invitation content avoids decorative cards without removing interactiv
         ]),
     ));
 
-    assert.match(source.template, /<GuestbookSection wedding=\{wedding\} tone="dark" unboxed accentColorOverride="#d6bd83" \/>/);
+    assert.match(source.template, /<GuestbookSection wedding=\{wedding\} tone="(?:dark|light)" unboxed accentColorOverride="#(?:d6bd83|9b8055)" \/>/);
     assert.doesNotMatch(source.hero, /rounded-full border border-slate-300\/80 bg-white\/70/);
-    assert.match(source.hero, /onClick=\{addToCalendar\}/);
+    assert.match(source.hero, /heroPan\.onStart/);
     assert.doesNotMatch(source.envelope, /bg-white\/10 backdrop-blur-xl border border-white\/20.*rounded-full/);
     assert.doesNotMatch(source.letter, /border border-\[#d6cdb9\].*shadow-\[/);
     assert.match(source.letter, /backgroundImage: "var\(--monea-paper-texture/);

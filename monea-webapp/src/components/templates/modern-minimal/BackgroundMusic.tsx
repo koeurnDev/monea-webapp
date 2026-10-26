@@ -8,9 +8,16 @@ interface BackgroundMusicProps {
     isPlaying: boolean;
     setIsPlaying: (playing: boolean) => void;
     audioRef: React.RefObject<HTMLAudioElement>;
+    showControl?: boolean;
 }
 
-export function BackgroundMusic({ wedding, isPlaying, setIsPlaying, audioRef }: BackgroundMusicProps) {
+export function BackgroundMusic({
+    wedding,
+    isPlaying,
+    setIsPlaying,
+    audioRef,
+    showControl = true,
+}: BackgroundMusicProps) {
     const audioUrl = wedding.themeSettings?.musicUrl;
 
     const togglePlay = () => {
@@ -37,7 +44,7 @@ export function BackgroundMusic({ wedding, isPlaying, setIsPlaying, audioRef }: 
         }
     }, [isPlaying, audioUrl, setIsPlaying, audioRef]);
 
-    if (!audioUrl) return null;
+    if (!audioUrl || !showControl) return null;
 
     return (
         <div className="invitation-floating-control fixed bottom-6 z-[100]">

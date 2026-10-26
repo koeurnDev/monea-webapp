@@ -215,8 +215,50 @@
   --primary: var(--monea-palette-primary);
 }
 
+#m05-gallery .m05-gallery-card {
+  aspect-ratio: 4 / 5;
+}
+
+@container (min-width: 768px) {
+  #m05-gallery .m05-gallery-grid {
+    grid-auto-rows: clamp(135px, 18cqw, 220px);
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  #m05-gallery .m05-gallery-card {
+    aspect-ratio: auto;
+  }
+
+  #m05-gallery .m05-gallery-featured {
+    grid-column: span 7;
+    grid-row: span 2;
+  }
+
+  #m05-gallery .m05-gallery-secondary {
+    grid-column: span 5;
+  }
+
+  #m05-gallery .m05-gallery-standard {
+    grid-column: span 3;
+  }
+}
+
 .invitation-floating-control {
   right: max(1.5rem, calc((100vw - 430px) / 2 + 1.5rem));
+}
+
+.modern-minimal-invitation .invitation-floating-control {
+  top: max(1rem, calc(env(safe-area-inset-top) + 0.5rem));
+  bottom: auto;
+}
+
+@media (min-width: 431px) {
+  .template-responsive-canvas [class*="fixed"][class*="inset-0"] {
+    right: auto !important;
+    left: 50% !important;
+    width: min(100vw, 430px) !important;
+    transform: translateX(-50%);
+  }
 }
 
 body.monea-customer-dashboard {
@@ -705,18 +747,6 @@ input::-webkit-credentials-auto-fill-button {
     transform: translateZ(100px);
   }
 }
-@font-face {
-  font-family: 'Kh Ang ToaThmor 2';
-  src: url('/fonts/KhAngToaThmor2.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-.font-toathmor2 {
-  font-family: 'Kh Ang ToaThmor 2', sans-serif !important;
-}
-
 /* Decorative Khmer typography for the public invitation only. */
 .modern-minimal-invitation,
 .modern-minimal-invitation .font-kantumruy,
@@ -730,7 +760,7 @@ input::-webkit-credentials-auto-fill-button {
 .modern-minimal-invitation .font-gisha,
 .modern-minimal-invitation .font-script,
 .modern-minimal-invitation .font-sans {
-  font-family: 'Kh Ang ToaThmor 2', 'Kantumruy Pro', sans-serif !important;
+  font-family: 'Kantumruy Pro', sans-serif !important;
   line-height: 1.7;
 }
 
@@ -738,6 +768,34 @@ input::-webkit-credentials-auto-fill-button {
   font-family: 'Khmer OS Muol Light', 'Khmer OS Moul', 'Moul', serif !important;
   font-weight: 400;
   line-height: 1.8;
+}
+
+main.modern-minimal-content :is(section, footer) {
+  color: #765817;
+}
+
+main.modern-minimal-content :is(section, footer) :is(h1, h2, h3, h4, h5, h6):not(button):not(button *):not(#location-modern a):not(#location-modern a *) {
+  color: #765817 !important;
+}
+
+main.modern-minimal-content :is(section, footer) :is(p, span, li, label, small, strong, em, time, figcaption, blockquote, dt, dd, div[class*="text-"], a):not(button):not(button *):not(#location-modern a):not(#location-modern a *) {
+  color: #765817 !important;
+}
+
+main.modern-minimal-content #hero {
+  color: #1f2937 !important;
+}
+
+main.modern-minimal-content #hero :is(h1, h2, h3, h4, h5, h6, p, span, li, label, small, strong, em, time, figcaption, blockquote, dt, dd, div[class*="text-"], a) {
+  color: #1f2937 !important;
+}
+
+.modern-minimal-content :is(section.bg-slate-900, section.bg-slate-950) {
+  color: #f3d68a;
+}
+
+.modern-minimal-content :is(section.bg-slate-900, section.bg-slate-950) :is(h1, h2, h3, h4, h5, h6, p, span, li, label, small, strong, em, time, figcaption, blockquote, dt, dd, div[class*="text-"], a):not(button):not(button *):not(#location-modern a):not(#location-modern a *) {
+  color: #f3d68a !important;
 }
 
 .m05-type-system {
@@ -815,6 +873,39 @@ html, body, *, button, input, select, textarea, a {
   line-height: 1.5;
   word-break: break-word;
   overflow-wrap: break-word;
+}
+
+.modern-minimal-content .m02-invitation-copy.font-suwannaphum {
+  font-family: 'Suwannaphum', 'Kantumruy Pro', sans-serif !important;
+}
+
+.modern-minimal-content .m02-calendar-link.font-suwannaphum {
+  font-family: 'Suwannaphum', 'Kantumruy Pro', sans-serif !important;
+}
+
+.modern-minimal-invitation .m05-font-name.m02-cover-name.font-suwannaphum {
+  font-family: 'Suwannaphum', 'Kantumruy Pro', sans-serif !important;
+}
+
+.modern-minimal-content .m02-thankyou-copy.font-suwannaphum {
+  font-family: 'Suwannaphum', 'Kantumruy Pro', sans-serif !important;
+}
+
+/* Apply the selected invitation body font without overriding template display fonts. */
+.template-font-default .font-kantumruy {
+  font-family: 'Kantumruy Pro', sans-serif !important;
+}
+
+.template-font-suwannaphum .font-kantumruy {
+  font-family: 'Suwannaphum', 'Kantumruy Pro', sans-serif !important;
+}
+
+.template-font-battambang .font-kantumruy {
+  font-family: 'Battambang', 'Kantumruy Pro', sans-serif !important;
+}
+
+.template-font-preahvihear .font-kantumruy {
+  font-family: 'Preahvihear', 'Kantumruy Pro', sans-serif !important;
 }
 
 /* 3. Animation សម្រាប់ប៊ូតុង Music */

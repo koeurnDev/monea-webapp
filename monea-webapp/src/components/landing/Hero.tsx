@@ -45,7 +45,7 @@ export function Hero() {
                     >
                         <Link
                             to={AUTH_URLS.SIGN_UP}
-                            className="group inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl border border-gold/35 bg-primary px-6 text-sm font-bold text-primary-foreground shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-gold/55 hover:bg-primary/90 active:translate-y-0 active:scale-[0.99] touch-manipulation sm:h-14 sm:w-auto sm:px-9"
+                            className="group inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl border border-primary bg-primary px-6 text-sm font-bold text-primary-foreground shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 active:translate-y-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 touch-manipulation sm:h-14 sm:w-auto sm:px-9"
                         >
                             <span>បង្កើតធៀបឥឡូវ</span>
                             <ArrowRight size={17} className="text-gold transition-transform group-hover:translate-x-1" aria-hidden="true" />

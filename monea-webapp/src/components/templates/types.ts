@@ -154,6 +154,7 @@ export interface WeddingData {
         facebookUrl?: string;
         telegramUrl?: string;
         phoneNumber?: string;
+        showSocialLinks?: boolean;
         paymentQrUrl?: string;
         lunarDate?: string;
         acknowledgment?: string;
@@ -205,6 +206,7 @@ export interface WeddingData {
     packageType?: string | null;
     paymentStatus?: string | null;
     guestId?: string; // Unique ID for QR check-in
+    previewUploadedImagesOnly?: boolean;
 }
 
 export interface TemplateProps {

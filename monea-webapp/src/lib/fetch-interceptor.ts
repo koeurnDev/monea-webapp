@@ -137,6 +137,19 @@ export function setupFetchInterceptor() {
       const method = init?.method || (input instanceof Request ? input.method : 'GET');
       const body = init?.body || (input instanceof Request && method !== 'GET' && method !== 'HEAD' ? input.body : undefined);
 
+      // ✅ Add Authorization header from sessionStorage if available (fallback for cookie issues)
+      if (!headers.has('Authorization')) {
+        try {
+          const storedToken = sessionStorage.getItem('auth_token');
+          if (storedToken) {
+            headers.set('Authorization', `Bearer ${storedToken}`);
+            console.log('[FetchInterceptor] Added Authorization header from sessionStorage');
+          }
+        } catch (e) {
+          // sessionStorage may not be available
+        }
+      }
+
       // Attach the CSRF token to state-changing calls. The worker validates
       // X-CSRF-Token for every cookie-authenticated write (lib/csrf.ts), so raw
       // fetch() callers must present it just like the moneaClient does.
@@ -157,13 +170,6 @@ export function setupFetchInterceptor() {
       };
 
       const response = await fetchWithNetworkReporting(finalUrl, updatedInit);
-      const apiPath = new URL(finalUrl).pathname;
-      if (
-        response.status === 401 &&
-        (!apiPath.startsWith('/api/auth/') || apiPath === '/api/auth/me')
-      ) {
-        window.dispatchEvent(new CustomEvent('monea:auth-expired'));
-      }
       return response;
     }
     

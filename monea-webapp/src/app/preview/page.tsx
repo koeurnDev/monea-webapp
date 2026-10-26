@@ -3,91 +3,6 @@ import { WeddingData } from "@/components/templates";
 import { TemplateRenderer } from "@/components/templates/TemplateRenderer";
 import { SafeBoundary } from "@/components/ui/SafeBoundary";
 import { moneaClient } from "@/lib/api-client";
-import { DEFAULT_WEDDING } from "@/data/wedding";
-import { NEA_M05_DEFAULT_ACTIVITIES } from "@/lib/nea-m05-defaults";
-import { PHONE_FRAME_COLORS, type PhoneFrameColor } from "@/lib/phone-frame-colors";
-
-const DEFAULT_PREVIEW_WEDDING: WeddingData = {
-    id: "preview-default",
-    groomName: "សុវណ្ណរាជ មាន",
-    brideName: "មាស ចាន់មានណា",
-    date: "2027-03-12T00:00:00.000Z",
-    location: "មជ្ឈមណ្ឌលសន្និបាត និងពិព័រណ៍កោះពេជ្រ (អគារ A)",
-    templateId: "modern-minimal",
-    eventType: "wedding",
-    themeSettings: {
-        primaryColor: "#8E5A5A",
-        fontStyle: "default",
-        nameFont: "suwannaphum",
-        nameSeparator: "and",
-        musicUrl: "",
-        lunarDate: "ថ្ងៃ ១៥ កើត ខែពិសាខ ឆ្នាំរោង ឆស័ក ព.ស. ២៥៦៩",
-        mapLink: "https://maps.google.com",
-        welcomeMessage: "យើងខ្ញុំមានកិត្តិយស និងក្តីសោមនស្សរីករាយឥតឧបមា សូមគោរពអញ្ជើញ ឯកឧត្តម លោកជំទាវ អ្នកឧកញ៉ា លោក លោកស្រី អ្នកនាងកញ្ញា អញ្ជើញចូលរួមជាអធិបតី និងជាភ្ញៀវកិត្តិយសក្នុងពិធីសិរីសួស្តី អាពាហ៍ពិពាហ៍របស់យើងខ្ញុំ...",
-        acknowledgment: "យើងខ្ញុំសូមថ្លែងអំណរគុណយ៉ាងជ្រាលជ្រៅបំផុត ចំពោះវត្តមាន និងពរជ័យដ៏ឧត្តុង្គឧត្តមរបស់ឯកឧត្តម លោកជំទាវ អ្នកឧកញ៉ា លោក លោកស្រី អ្នកនាងកញ្ញា និងប្រិយមិត្តទាំងអស់...",
-        parents: {
-            groomFather: "សុខ វិបុល",
-            groomMother: "ម៉ៅ ចិន្តា",
-            groomPhone: "012 345 678",
-            brideFather: "គង់ សម្បត្តិ",
-            brideMother: "អ៊ុ ស្រីនាង",
-            bridePhone: "098 765 432"
-        },
-        customLabels: {
-            invite_title: "សិរីសួស្តី អាពាហ៍ពិពាហ៍",
-            hero_subtitle: "យើងខ្ញុំសូមគោរពអញ្ជើញ",
-            hero_button: "បើកសំបុត្រអញ្ជើញ",
-            locationTitle: "ទីតាំងនៃកម្មវិធី",
-            locationSubtitle: "សូមចុចលើផែនទីដើម្បីស្វែងរកផ្លូវ",
-            giftTitle: "ចូលរួមជូនពរ & ចំណងដៃ",
-            giftBadge: "ស្កេន KHQR ដើម្បីចងដៃ"
-        },
-        bankAccounts: [
-            {
-                bankName: "KHQR",
-                accountName: "KAB SIN & MEAS CHANMEANA",
-                accountNumber: "001 234 567",
-                qrUrl: "/images/qr.webp",
-                side: "both"
-            }
-        ]
-    },
-    galleryItems: [
-        { url: "/assets/khmer-legacy/621811254_905398285378636_5240747682765358044_n.jpg", type: "IMAGE" },
-        { url: "/assets/khmer-legacy/621811002_905396558712142_5126771807004187076_n.jpg", type: "IMAGE" },
-        { url: "/assets/khmer-legacy/621811942_905392918712506_8600818650624857202_n.jpg", type: "IMAGE" },
-        { url: "/assets/khmer-legacy/621813168_905393265379138_2356104923368506186_n.jpg", type: "IMAGE" },
-        { url: "/assets/khmer-legacy/622279784_905392782045853_1189842078802821714_n.jpg", type: "IMAGE" },
-        { url: "/assets/khmer-legacy/622374686_905392995379165_1001573724208229331_n.jpg", type: "IMAGE" }
-    ],
-    activities: NEA_M05_DEFAULT_ACTIVITIES
-};
-
-const ANNIVERSARY_PREVIEW_WEDDING: WeddingData = {
-    ...DEFAULT_PREVIEW_WEDDING,
-    eventType: "anniversary",
-    themeSettings: {
-        ...DEFAULT_PREVIEW_WEDDING.themeSettings,
-        welcomeMessage: "យើងខ្ញុំសូមគោរពអញ្ជើញ ឯកឧត្តម លោកជំទាវ លោក លោកស្រី និងភ្ញៀវកិត្តិយស ចូលរួមជាសាក្សីក្នុងពិធីភ្ជាប់ពាក្យរបស់យើងខ្ញុំ។",
-        acknowledgment: "យើងខ្ញុំសូមថ្លែងអំណរគុណចំពោះវត្តមាន និងពរជ័យដ៏ប្រពៃក្នុងពិធីភ្ជាប់ពាក្យរបស់យើងខ្ញុំ។",
-        invitationText: "មានកិត្តិយសសូមគោរពអញ្ជើញចូលរួមជាសាក្សីក្នុងពិធីភ្ជាប់ពាក្យ",
-        customLabels: {
-            ...DEFAULT_PREVIEW_WEDDING.themeSettings?.customLabels,
-            invite_title: "សិរីសួស្តី ពិធីភ្ជាប់ពាក្យ",
-            invitationTitle: "សិរីសួស្តី ពិធីភ្ជាប់ពាក្យ",
-            hero_subtitle: "សិរីមង្គលពិធីភ្ជាប់ពាក្យ",
-            heroSubtitle: "សិរីមង្គលពិធីភ្ជាប់ពាក្យ",
-            timeline_title: "កម្មវិធីពិធីភ្ជាប់ពាក្យ",
-            scheduleTitle: "កម្មវិធីពិធីភ្ជាប់ពាក្យ",
-        },
-    },
-    activities: [
-        { time: "០៧:០០ ព្រឹក", title: "ជួបជុំសាច់ញាតិ", description: "ស្វាគមន៍គ្រួសារ និងភ្ញៀវកិត្តិយស", icon: null, order: 0 },
-        { time: "០៨:០០ ព្រឹក", title: "ពិធីសែនព្រេន", description: "គោរពតាមប្រពៃណីក្នុងពិធីភ្ជាប់ពាក្យ", icon: null, order: 1 },
-        { time: "០៩:០០ ព្រឹក", title: "ពិធីបំពាក់ចិញ្ចៀន", description: "ពិធីភ្ជាប់ពាក្យ និងជូនពរគូអនាគត", icon: null, order: 2 },
-        { time: "១១:០០ ព្រឹក", title: "ពិសាអាហារថ្ងៃត្រង់", description: "ជួបជុំទទួលទានអាហារជាមួយគ្រួសារ និងភ្ញៀវកិត្តិយស", icon: null, order: 3 },
-    ],
-};
 
 function decodeHtmlEntities(str: any): any {
     if (typeof str !== 'string') return str;
@@ -122,73 +37,69 @@ function deepDecodeEntities(obj: any): any {
 
 export default function PreviewPage() {
     const [wedding, setWedding] = useState<WeddingData | null>(null);
-    const [mounted, setMounted] = useState(false);
-    const [phoneFrameColor, setPhoneFrameColor] = useState<PhoneFrameColor>("black");
-    const isApprovalPreview =
-        typeof window !== "undefined" &&
-        new URLSearchParams(window.location.search).get("mode") === "approval";
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
-
-        // Fetch global phone frame color from settings
-        moneaClient.get("/api/admin/master/settings")
-            .then(res => {
-                const data = res.data as any;
-                if (data?.phoneFrameColor && Object.keys(PHONE_FRAME_COLORS).includes(data.phoneFrameColor)) {
-                    setPhoneFrameColor(data.phoneFrameColor as PhoneFrameColor);
-                }
-            })
-            .catch(() => {
-                // Use default "black" on error
-            });
-
         // Check URL params first (for template gallery preview)
         const urlParams = new URLSearchParams(window.location.search);
         const templateIdParam = urlParams.get('templateId');
-        const isApprovalMode = urlParams.get('mode') === 'approval';
+        const eventTypeParam = urlParams.get('eventType');
         const isEditorMode = urlParams.get('mode') === 'editor';
 
         if (templateIdParam) {
-            console.log("[Preview] Template preview mode:", templateIdParam);
-            const approvalWedding = isApprovalMode
-                ? templateIdParam === "nea-m05"
-                    ? {
-                        ...DEFAULT_WEDDING,
-                        id: "approval-preview",
-                        templateId: templateIdParam,
-                        date: "2026-11-15T00:00:00+07:00",
-                        locationName: "ភូមិព្រែកហូរ (ខាងលិច)",
-                        location: "សង្កាត់ព្រែកហូរ ក្រុងតាខ្មៅ ខេត្តកណ្តាល",
-                        themeSettings: {
-                            ...(DEFAULT_WEDDING.themeSettings ?? {}),
-                            primaryColor: "#b18d55",
-                            lunarDate: "ថ្ងៃអាទិត្យ ៦កើត ខែកត្ដិក ឆ្នាំមមី អដ្ឋស័ក ព.ស.២៥៧០",
-                            mapLink: "https://maps.google.com/?q=ភូមិព្រែកហូរ+(ខាងលិច),+សង្កាត់ព្រែកហូរ,+ក្រុងតាខ្មៅ,+ខេត្តកណ្តាល",
-                        },
-                        activities: NEA_M05_DEFAULT_ACTIVITIES,
-                    }
-                    : {
-                        ...DEFAULT_PREVIEW_WEDDING,
-                        id: "approval-preview",
-                        groomName: "",
-                        brideName: "",
-                        date: "",
-                        location: null,
-                        galleryItems: [],
-                        activities: [],
-                        themeSettings: { primaryColor: "#b18d55" },
-                    }
-                : templateIdParam === "anniversary-elegant"
-                    ? ANNIVERSARY_PREVIEW_WEDDING
-                    : DEFAULT_PREVIEW_WEDDING;
-            setWedding({
-                ...approvalWedding,
+            const defaultWedding: WeddingData = {
+                id: "",
+                groomName: "",
+                brideName: "",
+                date: "",
+                location: null,
                 templateId: templateIdParam,
-                eventType: templateIdParam === "anniversary-elegant"
-                    ? "anniversary"
-                    : approvalWedding.eventType,
-            });
+                eventType: eventTypeParam === "anniversary" || eventTypeParam === "wedding"
+                    ? eventTypeParam
+                    : templateIdParam === "anniversary-elegant" ? "anniversary" : "wedding",
+                galleryItems: [],
+                activities: [],
+                themeSettings: {},
+            };
+            moneaClient.get<{ data?: { previewData?: Partial<WeddingData> } }>(
+                `/api/template-preview/${encodeURIComponent(templateIdParam)}`,
+                { cache: "no-store" },
+            )
+                .then((response) => {
+                    if (response.error) {
+                        console.error("[Preview] Could not load saved template demo:", response.error);
+                        setWedding(defaultWedding);
+                        return;
+                    }
+                    const previewData = response.data?.data?.previewData;
+                    if (!previewData || typeof previewData !== "object" || Array.isArray(previewData)) {
+                        setWedding(defaultWedding);
+                        return;
+                    }
+                    setWedding({
+                        ...defaultWedding,
+                        ...deepDecodeEntities(previewData),
+                        id: "",
+                        templateId: templateIdParam,
+                        eventType: eventTypeParam === "anniversary" || eventTypeParam === "wedding"
+                            ? eventTypeParam
+                            : previewData.eventType === "anniversary" || previewData.eventType === "wedding"
+                                ? previewData.eventType
+                                : defaultWedding.eventType,
+                        themeSettings: {
+                            ...defaultWedding.themeSettings,
+                            ...(previewData.themeSettings || {}),
+                        },
+                        galleryItems: Array.isArray(previewData.galleryItems) ? previewData.galleryItems : [],
+                        activities: Array.isArray(previewData.activities) ? previewData.activities : [],
+                    });
+                })
+                .catch((error) => {
+                    console.error("[Preview] Could not load saved template demo:", error);
+                    setWedding(defaultWedding);
+                })
+                .finally(() => setIsLoading(false));
         } else if (!isEditorMode) {
             // Dashboard preview mode - fetch user's wedding data
             moneaClient.get<any>('/api/wedding?full=true')
@@ -198,22 +109,18 @@ export default function PreviewPage() {
                         if (typeof data.themeSettings === 'string' && data.themeSettings !== "") {
                             try { data.themeSettings = deepDecodeEntities(JSON.parse(data.themeSettings)); } catch (e) { data.themeSettings = {}; }
                         }
-                        // Ensure required fields exist
-                        if (!data.groomName) data.groomName = DEFAULT_PREVIEW_WEDDING.groomName;
-                        if (!data.brideName) data.brideName = DEFAULT_PREVIEW_WEDDING.brideName;
-                        if (!data.date) data.date = DEFAULT_PREVIEW_WEDDING.date;
                         setWedding(data);
                     }
                 })
                 .catch(err => {
                     console.warn("[Preview] initial fetch error:", err);
-                    // Fallback to default if fetch fails
-                    setWedding(DEFAULT_PREVIEW_WEDDING);
+                    setLoadError(true);
+                })
+                .finally(() => {
+                    setIsLoading(false);
                 });
-        } else {
-            // Editor mode receives the current draft from the parent via postMessage.
-            // Avoid a second full wedding query that can race the dashboard request.
-            setWedding(DEFAULT_PREVIEW_WEDDING);
+        } else if (!window.parent || window.parent === window) {
+            setIsLoading(false);
         }
 
         let readyPings = 0;
@@ -249,17 +156,9 @@ export default function PreviewPage() {
                     });
                 }
 
-                if (!cleanPayload.groomName || cleanPayload.groomName.trim() === "") {
-                    cleanPayload.groomName = DEFAULT_PREVIEW_WEDDING.groomName;
-                }
-                if (!cleanPayload.brideName || cleanPayload.brideName.trim() === "") {
-                    cleanPayload.brideName = DEFAULT_PREVIEW_WEDDING.brideName;
-                }
-                if (!cleanPayload.templateId) {
-                    cleanPayload.templateId = "modern-minimal";
-                }
-
-                setWedding(cleanPayload);
+                setWedding(deepDecodeEntities(cleanPayload));
+                setLoadError(false);
+                setIsLoading(false);
             }
 
             if (event.data?.type === "UPDATE_PREVIEW_PARTIAL" && event.data.payload) {
@@ -294,95 +193,53 @@ export default function PreviewPage() {
         // Initial ping
         window.parent.postMessage({ type: "PREVIEW_READY" }, "*");
 
-        // Fallback timer: if no wedding received after 1.2s, use default data so preview never stays blank
-        const fallbackTimer = setTimeout(() => {
-            setWedding(prev => prev ? prev : DEFAULT_PREVIEW_WEDDING);
-        }, 800);
+        const editorWaitTimer = isEditorMode
+            ? setTimeout(() => setIsLoading(false), 1200)
+            : undefined;
 
         return () => {
             window.removeEventListener("message", handleMessage);
             clearInterval(readyInterval);
-            clearTimeout(fallbackTimer);
+            if (editorWaitTimer) clearTimeout(editorWaitTimer);
         };
     }, []);
-
-    const activeWedding = wedding || DEFAULT_PREVIEW_WEDDING;
-    const previewFontClass = `preview-font-${activeWedding.themeSettings?.fontStyle || 'default'}`;
-    const isStandalone = typeof window !== 'undefined' && window.self === window.top;
-    const usePhoneFrame = isStandalone && !isApprovalPreview;
-    
-    // Get phone frame colors
-    const frameColors = PHONE_FRAME_COLORS[phoneFrameColor];
 
     return (
         <SafeBoundary name="Preview Template" isSilent={false}>
             <style>{`
-                /* Hide scrollbar for mobile preview to prevent off-center layout */
+                /* Hide scrollbar for preview to prevent off-center layout */
                 ::-webkit-scrollbar {
                     width: 0px;
                     background: transparent;
                 }
-                .preview-font-suwannaphum, .preview-font-suwannaphum * {
-                    font-family: 'Suwannaphum', 'Kantumruy Pro', sans-serif !important;
-                }
-                .preview-font-battambang, .preview-font-battambang * {
-                    font-family: 'Battambang', 'Kantumruy Pro', sans-serif !important;
-                }
-                .preview-font-preahvihear, .preview-font-preahvihear * {
-                    font-family: 'Preahvihear', 'Kantumruy Pro', sans-serif !important;
-                }
-                #root .preview-font-suwannaphum .modern-minimal-invitation,
-                #root .preview-font-suwannaphum .modern-minimal-invitation * {
-                    font-family: 'Suwannaphum', 'Kantumruy Pro', sans-serif !important;
-                }
-                #root .preview-font-battambang .modern-minimal-invitation,
-                #root .preview-font-battambang .modern-minimal-invitation * {
-                    font-family: 'Battambang', 'Kantumruy Pro', sans-serif !important;
-                }
-                #root .preview-font-preahvihear .modern-minimal-invitation,
-                #root .preview-font-preahvihear .modern-minimal-invitation * {
-                    font-family: 'Preahvihear', 'Kantumruy Pro', sans-serif !important;
-                }
             `}</style>
-            <div className={usePhoneFrame ? "min-h-screen bg-background md:flex md:justify-center md:bg-gradient-to-br md:from-slate-100 md:via-slate-50 md:to-blue-50 md:px-6 md:py-8" : "relative w-full min-h-screen bg-background"}>
-                <div 
-                    className={usePhoneFrame ? "mx-auto w-full min-h-screen md:relative md:my-auto md:max-w-[402px] md:rounded-[52px] md:border-[12px] md:p-[2px] md:shadow-[0_0_0_2px_rgba(58,58,60,0.5),0_25px_80px_-10px_rgba(0,0,0,0.4),0_35px_60px_-20px_rgba(0,0,0,0.3)]" : "w-full min-h-screen"}
-                    style={usePhoneFrame ? {
-                        background: frameColors.gradient,
-                        borderColor: frameColors.side
-                    } : undefined}
-                >
-                    <div className={`relative w-full min-h-screen bg-background ${usePhoneFrame ? "md:h-[min(870px,calc(100svh-4rem))] md:min-h-[700px] md:overflow-y-auto md:overscroll-contain md:rounded-[46px] md:[scrollbar-width:none]" : ""} ${previewFontClass}`}>
-                        <Suspense fallback={
-                            <div className="flex items-center justify-center min-h-[500px] animate-pulse font-kantumruy text-sm text-slate-400">
-                                កំពុងផ្ទុកគំរូ...
-                            </div>
-                        }>
-                            {wedding ? (() => {
-                                return <TemplateRenderer
-                                    wedding={activeWedding}
-                                    templateId={activeWedding.templateId || "modern-minimal"}
-                                    guestName={new URLSearchParams(window.location.search).get("guestName") || undefined}
-                                />;
-                            })() : (
-                                <div className="flex min-h-[500px] items-center justify-center animate-pulse font-kantumruy text-sm text-slate-400">
-                                    កំពុងផ្ទុកគំរូ...
-                                </div>
-                            )}
-                        </Suspense>
+            <div className="relative min-h-screen w-full">
+                <Suspense fallback={
+                    <div className="flex min-h-[500px] items-center justify-center animate-pulse font-kantumruy text-sm text-slate-400">
+                        កំពុងផ្ទុកគំរូ...
                     </div>
-                    {usePhoneFrame && (
-                        <>
-                            {/* iPhone 16 Pro Dynamic Island */}
-                            <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-[20px] z-[100] hidden h-[37px] w-[126px] -translate-x-1/2 rounded-full bg-black md:block shadow-[inset_0_0_8px_rgba(0,0,0,0.5)]" />
-                            {/* Side buttons */}
-                            <div aria-hidden="true" className="pointer-events-none absolute -left-[12px] top-[140px] z-[101] hidden h-[50px] w-[4px] rounded-l-md md:block" style={{ background: frameColors.side }} />
-                            <div aria-hidden="true" className="pointer-events-none absolute -left-[12px] top-[220px] z-[101] hidden h-[60px] w-[4px] rounded-l-md md:block" style={{ background: frameColors.side }} />
-                            <div aria-hidden="true" className="pointer-events-none absolute -left-[12px] top-[300px] z-[101] hidden h-[60px] w-[4px] rounded-l-md md:block" style={{ background: frameColors.side }} />
-                            <div aria-hidden="true" className="pointer-events-none absolute -right-[12px] top-[220px] z-[101] hidden h-[90px] w-[4px] rounded-r-md md:block" style={{ background: frameColors.side }} />
-                        </>
+                }>
+                    {isLoading ? (
+                        <div className="flex min-h-[500px] items-center justify-center animate-pulse font-kantumruy text-sm text-slate-400">
+                            កំពុងផ្ទុកគំរូ...
+                        </div>
+                    ) : loadError ? (
+                        <div role="alert" className="flex min-h-[500px] items-center justify-center px-6 text-center font-kantumruy text-sm text-muted-foreground">
+                            មិនអាចផ្ទុកទិន្នន័យ Preview បានទេ។ សូមព្យាយាមម្ដងទៀត។
+                        </div>
+                    ) : wedding ? (
+                        <TemplateRenderer
+                            wedding={wedding}
+                            templateId={wedding.templateId || null}
+                            guestName={new URLSearchParams(window.location.search).get("guestName") || undefined}
+                            uploadedImagesOnly
+                        />
+                    ) : (
+                        <div className="flex min-h-[500px] items-center justify-center px-6 text-center font-kantumruy text-sm text-muted-foreground">
+                            មិនមានទិន្នន័យ Preview ទេ។
+                        </div>
                     )}
-                </div>
+                </Suspense>
             </div>
         </SafeBoundary>
     );

@@ -58,8 +58,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ wedding }) => {
                     className="space-y-2"
                 >
                     <span className="block font-khmer-moul text-base leading-relaxed text-[#1B4332] sm:text-xl">
-                        {isEngagement ? "សិរីមង្គលពិធីភ្ជាប់ពាក្យ" : "សិរីមង្គលអាពាហ៍ពិពាហ៍"}
+                        {wedding.themeSettings?.customLabels?.invitationTitle || (isEngagement ? "សិរីមង្គលពិធីភ្ជាប់ពាក្យ" : "សិរីមង្គលអាពាហ៍ពិពាហ៍")}
                     </span>
+                    {wedding.themeSettings?.customLabels?.heroSubtitle && (
+                        <p className="max-w-sm text-xs leading-relaxed text-emerald-900/75 sm:text-sm">
+                            {wedding.themeSettings.customLabels.heroSubtitle}
+                        </p>
+                    )}
                     <div className="mx-auto h-px w-16 bg-gradient-to-r from-transparent via-emerald-700/55 to-transparent" />
                 </motion.div>
 
@@ -74,6 +79,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ wedding }) => {
                             src={couplePhoto}
                             alt={`${groomName} និង ${brideName}`}
                             className="aspect-[4/4.7] w-full object-cover"
+                            sizes="250px"
                             loading="eager"
                             decoding="async"
                         />

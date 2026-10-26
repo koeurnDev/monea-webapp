@@ -13,7 +13,7 @@ export function MoneaLogoMark({ className }: MoneaLogoMarkProps) {
             )}
         >
             <img
-                src="/icons/logomoneo.jpg"
+                src="/icons/logomoneo.webp"
                 alt=""
                 aria-hidden="true"
                 draggable={false}

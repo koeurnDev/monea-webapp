@@ -13,12 +13,14 @@ import {
     RotateCcw,
     Sparkles, 
     DollarSign,
-    CheckCircle2
+    CheckCircle2,
+    LayoutGrid
 } from "lucide-react";
 import { Link } from 'react-router-dom';
-import { cn } from "@/lib/utils";
+import { cn, formatCambodiaDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { TEMPLATE_DEFINITIONS } from "@/components/templates/template-config";
 
 function getPaginationItems(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
     if (totalPages <= 7) {
@@ -37,6 +39,28 @@ function getPaginationItems(currentPage: number, totalPages: number): Array<numb
     return pages;
 }
 
+function formatWeddingCreatedAt(value: unknown): string | null {
+    if (typeof value !== "string" && !(value instanceof Date)) return null;
+    const timestamp = value instanceof Date
+        ? value.toISOString()
+        : value.trim().replace(/^(\d{4}-\d{2}-\d{2})\s+/, "$1T");
+    const utcTimestamp = typeof value === "string"
+        && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(timestamp)
+        ? `${timestamp}Z`
+        : timestamp;
+    const date = new Date(utcTimestamp);
+    if (!Number.isFinite(date.getTime())) return null;
+
+    return formatCambodiaDate(date, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+    });
+}
+
 export default function MasterWeddingsPage() {
     const { showToast } = useToast();
     const [weddings, setWeddings] = useState<any[]>([]);
@@ -46,9 +70,9 @@ export default function MasterWeddingsPage() {
     const [pagination, setPagination] = useState<any>(null);
     const [stats, setStats] = useState({ total: 0, active: 0, premium: 0 });
     const [canEditPackages, setCanEditPackages] = useState(false);
+    const [canManageStatus, setCanManageStatus] = useState(false);
     const [pricing, setPricing] = useState<{ standard: number; pro: number }>({ standard: 9, pro: 19 });
     const [processingId, setProcessingId] = useState<string | null>(null);
-    const [packageFilter, setPackageFilter] = useState<"ALL" | "FREE" | "PRO" | "PREMIUM">("ALL");
     const [changeReason, setChangeReason] = useState("");
     const [paymentDisposition, setPaymentDisposition] = useState<"PAID" | "WAIVED">("PAID");
     const [paymentReference, setPaymentReference] = useState("");
@@ -59,11 +83,6 @@ export default function MasterWeddingsPage() {
         status: string;
     } | null>(null);
     const requestId = useRef(0);
-
-    const filteredWeddings = weddings.filter((w) => {
-        const pkg = (w.packageType || "FREE") as "FREE" | "PRO" | "PREMIUM";
-        return packageFilter === "ALL" || pkg === packageFilter;
-    });
 
     // Manual Upgrade Modal State
     const [upgradeTarget, setUpgradeTarget] = useState<{
@@ -81,7 +100,7 @@ export default function MasterWeddingsPage() {
         const params = new URLSearchParams({
             search,
             page: String(page),
-            packageType: packageFilter
+            packageType: "ALL"
         });
         fetch(`/api/admin/master/weddings?${params}`)
             .then(res => {
@@ -98,6 +117,7 @@ export default function MasterWeddingsPage() {
                     premium: Number(data.stats?.premium) || 0
                 });
                 setCanEditPackages(Boolean(data.permissions?.canEditPackages));
+                setCanManageStatus(Boolean(data.permissions?.canManageStatus));
                 if (data.pricing) {
                     setPricing({
                         standard: Number(data.pricing.standard) || 9,
@@ -111,6 +131,7 @@ export default function MasterWeddingsPage() {
                     setPagination(null);
                     setStats({ total: 0, active: 0, premium: 0 });
                     setCanEditPackages(false);
+                    setCanManageStatus(false);
                     const forbidden = error instanceof Error && error.message.includes("(403)");
                     const message = forbidden
                         ? "អ្នកមិនមានសិទ្ធិចូលមើលបញ្ជីកម្មវិធីមង្គលការនេះទេ។"
@@ -122,7 +143,7 @@ export default function MasterWeddingsPage() {
             .finally(() => {
                 if (currentRequestId === requestId.current) setLoading(false);
             });
-    }, [search, packageFilter, showToast]);
+    }, [search, showToast]);
 
     useEffect(() => {
         requestId.current += 1;
@@ -262,10 +283,17 @@ export default function MasterWeddingsPage() {
                                 />
                             </form>
 
+                            <Link to="/admin/master/templates" className="w-full sm:w-auto">
+                                <Button variant="outline" className="h-11 w-full rounded-xl px-4 text-sm font-black sm:w-auto">
+                                    <LayoutGrid size={15} className="mr-1.5" />
+                                    គ្រប់គ្រង Template
+                                </Button>
+                            </Link>
+
                             <Link to="/admin/master/payments" className="w-full sm:w-auto">
                                 <Button className="h-11 w-full rounded-xl bg-teal-700 px-4 text-sm font-black text-white shadow-sm hover:bg-teal-800 sm:w-auto">
                                     <DollarSign size={15} className="mr-1.5" />
-                                    បញ្ជាទូទាត់
+                                    ការលក់ Template
                                 </Button>
                             </Link>
                         </div>
@@ -298,25 +326,8 @@ export default function MasterWeddingsPage() {
                             <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">OVERVIEW</p>
                             <h2 className="mt-1 text-lg font-bold text-foreground">បញ្ជីកម្មវិធី</h2>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                            {(["ALL", "FREE", "PRO", "PREMIUM"] as const).map((filter) => (
-                                <button
-                                    key={filter}
-                                    type="button"
-                                    onClick={() => setPackageFilter(filter)}
-                                    className={cn(
-                                        "min-h-10 rounded-full border px-3 py-2 text-xs font-black uppercase tracking-[0.08em] transition-all sm:px-4 sm:text-xs",
-                                        packageFilter === filter
-                                            ? "border-teal-600/30 bg-teal-600/10 text-teal-800 dark:text-teal-300"
-                                            : "border-border bg-background text-muted-foreground hover:bg-muted"
-                                    )}
-                                >
-                                    {filter === "ALL" ? "ទាំងអស់" : filter}
-                                </button>
-                            ))}
-                        </div>
                         <span className="self-start rounded-full border border-border bg-background px-3 py-1.5 text-xs font-bold text-muted-foreground sm:self-auto">
-                            {loading ? 'Loading...' : `${pagination?.total ?? filteredWeddings.length} results`}
+                            {loading ? 'Loading...' : `${pagination?.total ?? weddings.length} results`}
                         </span>
                     </div>
 
@@ -325,7 +336,7 @@ export default function MasterWeddingsPage() {
                             <thead>
                                 <tr className="border-b border-border bg-muted/50 text-xs font-black tracking-wide text-muted-foreground">
                                     <th className="px-5 py-4">គូស្វាមីភរិយា / កាលបរិច្ឆេទ</th>
-                                    <th className="px-5 py-4 text-center">កញ្ចប់ និងស្ថានភាព</th>
+                                    <th className="px-5 py-4 text-center">Template ដែល User បានប្រើ</th>
                                     <th className="px-5 py-4 text-center">ភ្ញៀវ</th>
                                     <th className="px-5 py-4">ម្ចាស់គណនី</th>
                                     <th className="px-5 py-4 text-right">សកម្មភាព</th>
@@ -345,15 +356,18 @@ export default function MasterWeddingsPage() {
                                             {loadError}
                                         </td>
                                     </tr>
-                                ) : filteredWeddings.length === 0 ? (
+                                ) : weddings.length === 0 ? (
                                     <tr>
                                         <td colSpan={5} className="py-16 text-center text-xs font-bold text-muted-foreground">
                                             មិនមានទិន្នន័យមង្គលការដែលត្រូវស្វែងរកឡើយ
                                         </td>
                                     </tr>
-                                ) : filteredWeddings.map((w) => {
-                                    const isPremium = w.packageType === 'PREMIUM';
-                                    const isPro = w.packageType === 'PRO';
+                                ) : weddings.map((w) => {
+                                    const templateIds = Array.from(new Set([
+                                        w.templateId,
+                                        ...(Array.isArray(w.activeTemplateIds) ? w.activeTemplateIds : [])
+                                    ].filter((id): id is string => typeof id === "string" && id.length > 0)));
+                                    const createdAt = formatWeddingCreatedAt(w.createdAt);
 
                                     return (
                                         <tr key={w.id} className="transition-colors hover:bg-muted/30">
@@ -365,45 +379,37 @@ export default function MasterWeddingsPage() {
                                                     <span className="mt-1 text-sm font-mono text-muted-foreground">
                                                         {new Date(w.date).toLocaleDateString('km-KH', { timeZone: 'Asia/Phnom_Penh' })}
                                                     </span>
+                                                    {createdAt && (
+                                                        <span className="mt-1 text-xs text-muted-foreground">
+                                                            បង្កើត៖ {createdAt}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </td>
 
                                             <td className="px-5 py-5 text-center">
-                                                <div className="flex flex-col items-center gap-2">
-                                                    <span
-                                                        className={cn(
-                                                            "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wide shadow-sm",
-                                                            isPremium ? 'border-amber-300/50 bg-amber-500/10 text-amber-700 dark:text-amber-300' : isPro ? 'border-teal-600/25 bg-teal-600/10 text-teal-800 dark:text-teal-300' : 'border-border bg-muted/40 text-foreground'
-                                                        )}
-                                                    >
-                                                        {isPremium ? <Crown size={12} className="text-amber-600 dark:text-amber-300" /> : (isPro ? <Sparkles size={12} className="text-teal-700 dark:text-teal-300" /> : null)}
-                                                        <span>{getPackageKhmerName(w.packageType || 'FREE')}</span>
-                                                    </span>
+                                                <div className="flex flex-wrap items-center justify-center gap-2">
+                                                    {templateIds.length > 0 ? templateIds.map((templateId) => {
+                                                        const template = TEMPLATE_DEFINITIONS[templateId as keyof typeof TEMPLATE_DEFINITIONS];
+                                                        return (
+                                                            <span
+                                                                key={templateId}
+                                                                title={template?.title || templateId}
+                                                                className="flex flex-col items-center gap-0.5 rounded-xl border border-teal-600/25 bg-teal-600/10 px-3 py-2 text-teal-800 dark:text-teal-300"
+                                                            >
+                                                                <span className="flex items-center gap-1 text-xs font-black">
+                                                                    <LayoutGrid size={12} />
+                                                                    {template?.code || templateId}
+                                                                </span>
+                                                                <span className="max-w-32 text-[10px] font-bold leading-tight">
+                                                                    {template?.title || "Template មិនស្គាល់"}
+                                                                </span>
+                                                            </span>
+                                                        );
+                                                    }) : (
+                                                        <span className="text-xs text-muted-foreground">មិនទាន់ជ្រើសរើស</span>
+                                                    )}
                                                     <span className="text-xs font-mono font-bold text-muted-foreground">#{w.weddingCode || '---'}</span>
-                                                    <div className="flex flex-wrap justify-center gap-1">
-                                                        <span className={cn(
-                                                            "rounded-full border px-2.5 py-1 text-xs font-bold",
-                                                            w.status === "ACTIVE"
-                                                                ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                                                                : "border-border bg-muted/50 text-muted-foreground"
-                                                        )}>
-                                                            {w.status === "ACTIVE" ? "សកម្ម" : "បានបិទ"}
-                                                        </span>
-                                                        <span className={cn(
-                                                            "rounded-full border px-2.5 py-1 text-xs font-bold",
-                                                            w.paymentStatus === "PAID"
-                                                                ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                                                                : w.paymentStatus === "AWAITING_VERIFICATION"
-                                                                    ? "border-amber-400/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                                                                    : "border-amber-500/25 bg-amber-500/10 text-amber-800 dark:text-amber-300"
-                                                        )}>
-                                                            {w.paymentStatus === "PAID"
-                                                                ? "បានបង់"
-                                                                : w.paymentStatus === "AWAITING_VERIFICATION"
-                                                                    ? "កំពុងផ្ទៀងផ្ទាត់"
-                                                                    : "មិនទាន់បង់"}
-                                                        </span>
-                                                    </div>
                                                 </div>
                                             </td>
 
@@ -446,7 +452,7 @@ export default function MasterWeddingsPage() {
                                                             <span>កែប្រែ</span>
                                                         </button>
                                                     )}
-                                                    {canEditPackages && (
+                                                    {canManageStatus && (
                                                         <button
                                                             onClick={() => {
                                                                 setStatusTarget({
@@ -496,13 +502,16 @@ export default function MasterWeddingsPage() {
                             <div role="alert" className="rounded-2xl border border-destructive/25 bg-destructive/10 p-8 text-center text-sm font-bold text-destructive">
                                 {loadError}
                             </div>
-                        ) : filteredWeddings.length === 0 ? (
+                        ) : weddings.length === 0 ? (
                             <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center text-xs font-bold text-muted-foreground">
                                 មិនមានទិន្នន័យមង្គលការដែលត្រូវស្វែងរកឡើយ
                             </div>
-                        ) : filteredWeddings.map((w) => {
-                            const isPremium = w.packageType === 'PREMIUM';
-                            const isPro = w.packageType === 'PRO';
+                        ) : weddings.map((w) => {
+                            const templateIds = Array.from(new Set([
+                                w.templateId,
+                                ...(Array.isArray(w.activeTemplateIds) ? w.activeTemplateIds : [])
+                            ].filter((id): id is string => typeof id === "string" && id.length > 0)));
+                            const createdAt = formatWeddingCreatedAt(w.createdAt);
 
                             return (
                                 <div key={w.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
@@ -514,41 +523,35 @@ export default function MasterWeddingsPage() {
                                             <p className="mt-1 text-sm font-mono text-muted-foreground">
                                                 {new Date(w.date).toLocaleDateString('km-KH', { timeZone: 'Asia/Phnom_Penh' })}
                                             </p>
+                                            {createdAt && (
+                                                <p className="mt-1 text-xs text-muted-foreground">
+                                                    បង្កើត៖ {createdAt}
+                                                </p>
+                                            )}
                                         </div>
 
-                                        <span
-                                            className={cn(
-                                                "flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wide",
-                                                isPremium ? 'border-amber-300/50 bg-amber-500/10 text-amber-700 dark:text-amber-300' : isPro ? 'border-teal-600/25 bg-teal-600/10 text-teal-800 dark:text-teal-300' : 'border-border bg-muted/40 text-foreground'
+                                        <div className="flex max-w-[48%] flex-wrap justify-end gap-1">
+                                            {templateIds.length > 0 ? templateIds.map((templateId) => {
+                                                const template = TEMPLATE_DEFINITIONS[templateId as keyof typeof TEMPLATE_DEFINITIONS];
+                                                return (
+                                                    <span
+                                                        key={templateId}
+                                                        title={template?.title || templateId}
+                                                        className="flex flex-col items-center gap-0.5 rounded-xl border border-teal-600/25 bg-teal-600/10 px-2 py-1.5 text-center text-teal-800 dark:text-teal-300"
+                                                    >
+                                                        <span className="flex items-center gap-1 text-xs font-black">
+                                                            <LayoutGrid size={11} />
+                                                            {template?.code || templateId}
+                                                        </span>
+                                                        <span className="max-w-24 text-[9px] font-bold leading-tight">
+                                                            {template?.title || "Template មិនស្គាល់"}
+                                                        </span>
+                                                    </span>
+                                                );
+                                            }) : (
+                                                <span className="text-[10px] text-muted-foreground">មិនទាន់ជ្រើសរើស</span>
                                             )}
-                                        >
-                                            {isPremium ? <Crown size={11} className="text-amber-600 dark:text-amber-300" /> : (isPro ? <Sparkles size={11} className="text-teal-700 dark:text-teal-300" /> : null)}
-                                            <span>{getPackageKhmerName(w.packageType || 'FREE')}</span>
-                                        </span>
-                                    </div>
-                                    <div className="mt-2 flex flex-wrap justify-end gap-1">
-                                        <span className={cn(
-                                            "rounded-full border px-2.5 py-1 text-xs font-bold",
-                                            w.status === "ACTIVE"
-                                                ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                                                : "border-border bg-muted/50 text-muted-foreground"
-                                        )}>
-                                            {w.status === "ACTIVE" ? "សកម្ម" : "បានបិទ"}
-                                        </span>
-                                        <span className={cn(
-                                            "rounded-full border px-2.5 py-1 text-xs font-bold",
-                                            w.paymentStatus === "PAID"
-                                                ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                                                : w.paymentStatus === "AWAITING_VERIFICATION"
-                                                    ? "border-amber-400/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                                                    : "border-amber-500/25 bg-amber-500/10 text-amber-800 dark:text-amber-300"
-                                        )}>
-                                            {w.paymentStatus === "PAID"
-                                                ? "បានបង់"
-                                                : w.paymentStatus === "AWAITING_VERIFICATION"
-                                                    ? "កំពុងផ្ទៀងផ្ទាត់"
-                                                    : "មិនទាន់បង់"}
-                                        </span>
+                                        </div>
                                     </div>
 
                                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
@@ -590,7 +593,7 @@ export default function MasterWeddingsPage() {
                                                 កែប្រែ
                                             </button>
                                         )}
-                                        {canEditPackages && (
+                                        {canManageStatus && (
                                             <button
                                                 onClick={() => {
                                                     setStatusTarget({

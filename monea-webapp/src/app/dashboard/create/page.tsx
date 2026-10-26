@@ -139,7 +139,10 @@ export default function CreateWeddingPage() {
                 type: 'error',
                 message: 'បង្កើតមិនបានជោគជ័យ។ សូមព្យាយាមម្ដងទៀត។',
             });
-            console.error(`Failed to create wedding: Status ${res.status}`, res.error);
+            console.error(`Failed to create wedding: Status ${res.status}`, {
+                error: res.error,
+                details: res.details,
+            });
         } catch (error) {
             setSubmitFeedback({
                 type: 'error',

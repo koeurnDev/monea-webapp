@@ -9,13 +9,10 @@ import {
     Settings,
     ShieldCheck,
     History,
-    DollarSign,
     Lock,
     CreditCard,
     Wrench,
     FileText,
-    Zap,
-    Crown,
     CheckCircle2,
     Eye,
     EyeOff,
@@ -42,15 +39,10 @@ export default function MasterSettingsPage() {
     const isKm = locale === 'km';
     const [config, setConfig] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'pricing' | 'appearance' | 'security' | 'bakong' | 'maintenance' | 'audit'>('pricing');
+    const [activeTab, setActiveTab] = useState<'appearance' | 'security' | 'bakong' | 'maintenance' | 'audit'>('appearance');
     const [phoneFrameColor, setPhoneFrameColor] = useState<PhoneFrameColor>("black");
     const [isSavingPhoneFrameColor, setIsSavingPhoneFrameColor] = useState(false);
     const { showToast } = useToast();
-
-    // Dedicated Pricing States (Allows typing freely e.g. 9, 19, 29.50)
-    const [stadPrice, setStadPrice] = useState<string>("9");
-    const [proPrice, setProPrice] = useState<string>("19");
-    const [isSavingPricing, setIsSavingPricing] = useState(false);
 
     // 2FA States
     const [qrCode, setQrCode] = useState<string | null>(null);
@@ -67,8 +59,7 @@ export default function MasterSettingsPage() {
     const [bakongProject, setBakongProject] = useState("Wedding Integration");
     const [bakongManualToken, setBakongManualToken] = useState("");
     const [isBakongLoading, setIsBakongLoading] = useState(false);
-    // Receiving account the KHQR codes are generated against. Required — without
-    // it /api/payment/generate-qr returns "Payment system not configured".
+    // Receiving account used to generate KHQR codes for current payment flows.
     const [bakongAccountID, setBakongAccountID] = useState("");
     const [bakongMerchantName, setBakongMerchantName] = useState("MONEO");
     const [isSavingBakongAccount, setIsSavingBakongAccount] = useState(false);
@@ -100,12 +91,6 @@ export default function MasterSettingsPage() {
                 setConfig(data);
                 if (isPhoneFrameColor(data?.phoneFrameColor)) {
                     setPhoneFrameColor(data.phoneFrameColor);
-                }
-                if (data?.stadPrice !== undefined && data?.stadPrice !== null) {
-                    setStadPrice(String(data.stadPrice));
-                }
-                if (data?.proPrice !== undefined && data?.proPrice !== null) {
-                    setProPrice(String(data.proPrice));
                 }
             })
             .finally(() => setLoading(false));
@@ -156,31 +141,6 @@ export default function MasterSettingsPage() {
             console.error(e);
             showToast({ title: t("admin.settings.saveFailed", { defaultValue: "បរាជ័យក្នុងការរក្សាទុក" }), type: "error" });
             setConfig(config); // revert
-        }
-    };
-
-    const handleSavePricing = async () => {
-        const sPrice = parseFloat(stadPrice.trim() || "0");
-        const pPrice = parseFloat(proPrice.trim() || "0");
-        
-        setIsSavingPricing(true);
-        try {
-            const res = await moneaClient.post("/api/admin/master/settings", {
-                ...config,
-                stadPrice: sPrice,
-                proPrice: pPrice
-            });
-
-            if (!res.error) {
-                setConfig({ ...config, stadPrice: sPrice, proPrice: pPrice });
-                showToast({ title: "បានរក្សាទុកតម្លៃកញ្ចប់សេវាជោគជ័យ!", type: "success" });
-            } else {
-                showToast({ title: "បរាជ័យក្នុងការរក្សាទុក", description: res.error, type: "error" });
-            }
-        } catch (e: any) {
-            showToast({ title: "បរាជ័យក្នុងការរក្សាទុក", description: e?.message, type: "error" });
-        } finally {
-            setIsSavingPricing(false);
         }
     };
 
@@ -354,7 +314,6 @@ export default function MasterSettingsPage() {
     };
 
     const tabs = [
-        { id: 'pricing', label: "កញ្ចប់តម្លៃ", enLabel: "Pricing", icon: DollarSign },
         { id: 'appearance', label: "រូបរាង Preview", enLabel: "Preview Appearance", icon: Smartphone },
         { id: 'security', label: "សុវត្ថិភាព & គណនី", enLabel: "Security & Account", icon: Lock },
         { id: 'bakong', label: "Bakong KHQR", enLabel: "Gateway", icon: CreditCard },
@@ -427,124 +386,6 @@ export default function MasterSettingsPage() {
                         );
                     })}
                 </div>
-
-                {/* ─── TAB 1: PRICING (កញ្ចប់តម្លៃ) ─── */}
-                {activeTab === 'pricing' && (
-                    <div className="max-w-4xl space-y-4 sm:space-y-6">
-                        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
-                            {/* Standard Plan */}
-                            <Card className="bg-card border border-border/80 rounded-2xl shadow-xs">
-                                <CardContent className="space-y-5 p-4 sm:space-y-6 sm:p-8">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="flex min-w-0 items-center gap-3">
-                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
-                                                <Zap size={20} />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <h3 className="break-words font-bold text-sm text-foreground sm:text-base">កញ្ចប់ STANDARD</h3>
-                                                <p className="text-xs text-muted-foreground sm:text-xs">Pro Tier Wedding Invitation</p>
-                                            </div>
-                                        </div>
-                                        <span className="shrink-0 rounded-full bg-blue-100 px-2 py-1 text-xs font-black uppercase text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 sm:px-2.5 sm:text-xs">
-                                            TIER 01
-                                        </span>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-muted-foreground">
-                                            តម្លៃក្នុងមួយកម្មវិធី (USD):
-                                        </label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-lg">$</span>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                placeholder="9"
-                                                className="h-12 w-full pl-9 pr-4 rounded-xl border border-input bg-background text-xl font-bold text-foreground focus:border-teal-600 focus:ring-2 focus:ring-teal-600/10 outline-none font-mono"
-                                                value={stadPrice}
-                                                onChange={(e) => {
-                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
-                                                    setStadPrice(val);
-                                                }}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleSavePricing()}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <p className="text-xs leading-relaxed text-muted-foreground">
-                                        តម្លៃនេះនឹងត្រូវគិតប្រាក់ដោយស្វ័យប្រវត្តិកាលណាអតិថិជនជ្រើសរើសកញ្ចប់ Standard។
-                                    </p>
-                                </CardContent>
-                            </Card>
-
-                            {/* Pro Master Plan */}
-                            <Card className="bg-card border border-border/80 rounded-2xl shadow-xs">
-                                <CardContent className="space-y-5 p-4 sm:space-y-6 sm:p-8">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="flex min-w-0 items-center gap-3">
-                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
-                                                <Crown size={20} />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <h3 className="break-words font-bold text-sm text-foreground sm:text-base">កញ្ចប់ PRO MASTER</h3>
-                                                <p className="text-xs text-muted-foreground sm:text-xs">Premium White-Label Wedding</p>
-                                            </div>
-                                        </div>
-                                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-1 text-xs font-black uppercase text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 sm:px-2.5 sm:text-xs">
-                                            PREMIUM
-                                        </span>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-muted-foreground">
-                                            តម្លៃក្នុងមួយកម្មវិធី (USD):
-                                        </label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-lg">$</span>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                placeholder="19"
-                                                className="h-12 w-full pl-9 pr-4 rounded-xl border border-input bg-background text-xl font-bold text-foreground focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 outline-none font-mono"
-                                                value={proPrice}
-                                                onChange={(e) => {
-                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
-                                                    setProPrice(val);
-                                                }}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleSavePricing()}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <p className="text-xs leading-relaxed text-muted-foreground">
-                                        កញ្ចប់ពេញលេញគ្មាន Watermark, មុខងារ RSVP គ្មានដែនកំណត់ និង Custom Domain។
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Save Pricing Action Button */}
-                        <div className="flex justify-stretch pt-1 sm:justify-end sm:gap-3 sm:pt-2">
-                            <Button
-                                onClick={handleSavePricing}
-                                disabled={isSavingPricing}
-                                className="h-auto min-h-12 w-full whitespace-normal px-4 py-3 text-center text-xs bg-teal-700 hover:bg-teal-800 text-white rounded-xl font-bold shadow-md shadow-teal-700/20 flex items-center justify-center gap-2 sm:w-auto sm:px-8 sm:text-sm"
-                            >
-                                {isSavingPricing ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        <span>កំពុងរក្សាទុក...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save size={16} />
-                                        <span>រក្សាទុកតម្លៃកញ្ចប់សេវា (Save Pricing)</span>
-                                    </>
-                                )}
-                            </Button>
-                        </div>
-                    </div>
-                )}
 
                 {activeTab === 'appearance' && (
                     <Card className="max-w-3xl rounded-2xl border border-border/80 bg-card shadow-xs">

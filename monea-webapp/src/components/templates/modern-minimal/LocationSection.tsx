@@ -2,15 +2,18 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { WeddingData } from "../types";
 import { MapPin, Navigation } from 'lucide-react';
-import { getDirectMapUrl, getMapEmbedUrl } from "../shared/mapUtils";
+import { getDirectMapUrl, getMapEmbedUrl, isGoogleMapsShortLink } from "../shared/mapUtils";
 
 export const LocationSection = ({ wedding }: { wedding: WeddingData }) => {
     const venueName = wedding.location || "";
-    const mapLink = wedding.themeSettings?.mapLink || "";
+    const mapLink = wedding.themeSettings?.mapLink?.trim() || wedding.mapUrl?.trim() || "";
+    const locationTitle = wedding.themeSettings?.customLabels?.locationTitle || "ទីតាំងកម្មវិធី";
+    const locationSubtitle = wedding.themeSettings?.customLabels?.locationSubtitle;
     if (!venueName && !mapLink) return null;
 
-    const hasEmbeddableMap = Boolean(venueName || mapLink.includes("google.com/maps/embed") || mapLink.includes("q="));
-    const directMapUrl = getDirectMapUrl(wedding.themeSettings?.mapLink, venueName);
+    const hasEmbeddableMap = !isGoogleMapsShortLink(mapLink)
+        && Boolean(venueName || mapLink.includes("google.com/maps/embed") || mapLink.includes("q="));
+    const directMapUrl = getDirectMapUrl(mapLink, venueName);
     const mapEmbedUrl = hasEmbeddableMap ? getMapEmbedUrl(mapLink, venueName) : "";
 
     return (
@@ -26,7 +29,8 @@ export const LocationSection = ({ wedding }: { wedding: WeddingData }) => {
                 >
                     <div className="mb-6 text-center">
                         <MapPin aria-hidden="true" className="mx-auto mb-3 h-5 w-5 text-[#9b8055]" />
-                        <h2 className="font-khmer-moul text-xl leading-relaxed text-slate-900 sm:text-2xl">ទីតាំងកម្មវិធី</h2>
+                        <h2 className="font-khmer-moul text-xl leading-relaxed text-slate-900 sm:text-2xl">{locationTitle}</h2>
+                        {locationSubtitle && <p className="mt-2 text-sm leading-7 text-slate-600">{locationSubtitle}</p>}
                         <div className="mx-auto mt-3 h-px w-12 bg-[#9b8055]/50" />
                     </div>
 

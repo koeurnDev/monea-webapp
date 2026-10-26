@@ -51,6 +51,7 @@ export function HeroSection({ wedding, guestName, heroImage, smartColors, heroPa
                                 {/* Main Image - responsive fit */}
                                 <PhotoImage
                                     src={heroImage} 
+                                    sizes="(max-width: 430px) 100vw, 800px"
                                     className={`w-full h-full transition-none ${heroPan.isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                                     style={{
                                         objectFit: 'cover',

@@ -11,6 +11,7 @@ interface GiftSectionProps {
 export const GiftSection: React.FC<GiftSectionProps> = ({ wedding, primaryColor }) => {
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const bankAccounts = getConfiguredPaymentAccounts(wedding.themeSettings?.bankAccounts);
+    const labels = wedding.themeSettings?.customLabels;
 
     const handleCopy = (num: string, idx: number) => {
         navigator.clipboard.writeText(num);
@@ -25,8 +26,14 @@ export const GiftSection: React.FC<GiftSectionProps> = ({ wedding, primaryColor 
             <div className="max-w-md mx-auto space-y-6 relative z-10">
                 <div className="space-y-1">
                     <span className="fh-khmer-safe block px-2 font-khmer-moul text-lg text-[#4d5649] sm:text-2xl">
-                        ចំណងដៃអាពាហ៍ពិពាហ៍
+                        {labels?.giftTitle || "ចំណងដៃអាពាហ៍ពិពាហ៍"}
                     </span>
+                    {labels?.giftSubtitle && (
+                        <p className="fh-khmer-safe mx-auto max-w-md text-xs leading-relaxed text-[#4d5649]">
+                            {labels.giftSubtitle}
+                        </p>
+                    )}
+                    {labels?.giftBadge && <span className="fh-khmer-safe inline-flex rounded-full border border-[#8ea07a]/40 px-3 py-1 text-xs font-semibold text-[#4d5649]">{labels.giftBadge}</span>}
                     <div className="w-12 h-0.5 bg-gradient-to-r from-transparent via-[#8ea07a] to-transparent mx-auto" />
                 </div>
 

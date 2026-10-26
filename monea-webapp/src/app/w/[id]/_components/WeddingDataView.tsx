@@ -1,5 +1,4 @@
 import React, { Suspense, useEffect, useState } from "react";
-import { Helmet } from "react-helmet-async";
 import { useSearchParams } from "react-router-dom";
 import { getApiUrl } from "@/lib/api-url";
 import { NETWORK_ERROR_MESSAGE } from "@/lib/network-errors";
@@ -10,6 +9,7 @@ import { WeddingSkeleton } from "./WeddingSkeleton";
 import { GuestViewTracker } from "@/components/analytics/GuestViewTracker";
 import { WeddingDataCache } from "@/lib/wedding-data-cache";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { SEOHead } from "@/components/seo/SEOHead";
 
 type PublicWeddingData = {
     id: string;
@@ -271,47 +271,95 @@ export default function WeddingDataView({
         weddingForTemplate.galleryItems?.[0]?.url,
     ].find((candidate): candidate is string =>
         typeof candidate === "string" && candidate.length > 0 && !/^(?:data|blob):/i.test(candidate)
-    ) || "/icons/icon-512x512.png";
+    ) || "/icons/logomoneo.webp";
     const optimizedHeroImage = optimizeMediaUrl(imageSource, {
         width: 1200,
         height: 630,
         quality: "auto",
         crop: "fill",
     });
-    const heroImg = new URL(optimizedHeroImage || "/icons/icon-512x512.png", window.location.origin).href;
+    const seoImage = new URL("/icons/SE.png", window.location.origin).href;
 
     const requestedTemplate = template || wedding.templateId || "blossom-romance";
     const selectedTemplate = wedding.eventType === "anniversary" && requestedTemplate === "anniversary-elegant"
         ? "blossom-romance"
         : requestedTemplate;
 
+    // Format wedding date for structured data
+    const weddingDate = wedding.date ? new Date(wedding.date) : null;
+    const weddingISODate = weddingDate?.toISOString();
+    const locationName = wedding.location || "កម្ពុជា";
+    
+    // Event type for structured data
+    const eventTypeName = wedding.eventType === "anniversary" ? "ខួបអនុស្សាវរីយ៍" : "មង្គលការ";
+    
     return (
         <>
-            <Helmet>
-                <title>{shareTitle}</title>
-                <meta name="description" content={shareDesc} />
-                <meta name="robots" content={resolvedGuestId || resolvedGuestName ? "noindex, nofollow" : "index, follow, max-image-preview:large"} />
-                <meta property="og:title" content={shareTitle} />
-                <meta property="og:description" content={shareDesc} />
-                <meta property="og:image" content={heroImg} />
-                <meta property="og:image:secure_url" content={heroImg} />
-                <meta property="og:image:alt" content={`${wedding.groomName} និង ${wedding.brideName}`} />
-                <meta property="og:type" content="website" />
-                <link rel="canonical" href={`${window.location.origin}/w/${encodeURIComponent(wedding.id)}`} />
-                <meta property="og:url" content={`${window.location.origin}/w/${encodeURIComponent(wedding.id)}`} />
-                <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:title" content={shareTitle} />
-                <meta name="twitter:description" content={shareDesc} />
-                <meta name="twitter:image" content={heroImg} />
-                <meta name="twitter:image:alt" content={`${wedding.groomName} និង ${wedding.brideName}`} />
-
+            <SEOHead
+                title={shareTitle}
+                description={shareDesc}
+                canonical={`${window.location.origin}/w/${encodeURIComponent(wedding.id)}`}
+                ogImage={seoImage}
+                ogImageAlt="MONEO — ធៀបអញ្ជើញមង្គលការឌីជីថលនៅកម្ពុជា"
+                ogType="website"
+                robots={resolvedGuestId || resolvedGuestName
+                    ? "noindex, nofollow, noimageindex, max-image-preview:none"
+                    : "index, follow, noimageindex, max-image-preview:none"}
+                keywords={`${wedding.groomName}, ${wedding.brideName}, មង្គលការ, wedding invitation Cambodia, ធៀបការឌីជីថល`}
+                structuredData={[
+                    // Event Schema
+                    {
+                        "@context": "https://schema.org",
+                        "@type": "Event",
+                        "name": `${eventTypeName}របស់ ${wedding.groomName} និង ${wedding.brideName}`,
+                        "description": shareDesc,
+                        "startDate": weddingISODate || new Date().toISOString(),
+                        "endDate": weddingISODate || new Date().toISOString(),
+                        "eventStatus": "https://schema.org/EventScheduled",
+                        "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+                        "location": {
+                            "@type": "Place",
+                            "name": locationName,
+                            "address": {
+                                "@type": "PostalAddress",
+                                "addressCountry": "KH"
+                            }
+                        },
+                        "image": seoImage,
+                        "organizer": {
+                            "@type": "Person",
+                            "name": `${wedding.groomName} & ${wedding.brideName}`
+                        },
+                        "url": `${window.location.origin}/w/${encodeURIComponent(wedding.id)}`
+                    },
+                    // Breadcrumb Schema
+                    {
+                        "@context": "https://schema.org",
+                        "@type": "BreadcrumbList",
+                        "itemListElement": [
+                            {
+                                "@type": "ListItem",
+                                "position": 1,
+                                "name": "ទំព័រដើម",
+                                "item": window.location.origin
+                            },
+                            {
+                                "@type": "ListItem",
+                                "position": 2,
+                                "name": `${wedding.groomName} & ${wedding.brideName}`,
+                                "item": `${window.location.origin}/w/${encodeURIComponent(wedding.id)}`
+                            }
+                        ]
+                    }
+                ]}
+            >
                 {/* Performance Preloads */}
                 {optimizedHeroImage && (
                     <link rel="preload" as="image" href={optimizedHeroImage} fetchPriority="high" />
                 )}
                 <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
                 <link rel="dns-prefetch" href="https://res.cloudinary.com" />
-            </Helmet>
+            </SEOHead>
 
             {resolvedGuestId && (
                 <GuestViewTracker

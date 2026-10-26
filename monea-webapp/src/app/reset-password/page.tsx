@@ -26,10 +26,12 @@ function ResetPasswordForm() {
     const location = useLocation();
     const [searchParams] = useSearchParams();
     const token = searchParams.get("token");
-    const email = typeof location.state === "object" && location.state !== null &&
+    const emailFromUrl = searchParams.get("email");
+    const emailFromState = typeof location.state === "object" && location.state !== null &&
         "email" in location.state && typeof location.state.email === "string"
         ? location.state.email
         : "";
+    const email = emailFromUrl || emailFromState;
 
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");

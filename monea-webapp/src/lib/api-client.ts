@@ -68,10 +68,10 @@ export type ApiResponse<T> = {
     status: number;
 };
 
-function notifyAuthExpired(path: string, status: number): void {
+function notifyAuthExpired(path: string, status: number, requestStartedAt: number): void {
     if (status !== 401 || typeof window === "undefined") return;
     if (path.startsWith("/api/auth/") && path !== "/api/auth/me") return;
-    window.dispatchEvent(new CustomEvent("monea:auth-expired"));
+    window.dispatchEvent(new CustomEvent("monea:auth-expired", { detail: { requestStartedAt } }));
 }
 
 async function request<T>(
@@ -80,6 +80,7 @@ async function request<T>(
 ): Promise<ApiResponse<T>> {
     const method = options.method?.toUpperCase() || "GET";
     const isMutable = ["POST", "PUT", "DELETE", "PATCH"].includes(method);
+    const requestStartedAt = Date.now();
 
     try {
         const headers = new Headers(options.headers);
@@ -93,6 +94,19 @@ async function request<T>(
                 throw new Error("Could not obtain a CSRF token for this request");
             }
             headers.set("X-CSRF-Token", token);
+        }
+
+        // ✅ NEW: Check for token in sessionStorage (fallback if cookies don't work)
+        if (!headers.has("Authorization")) {
+            try {
+                const storedToken = sessionStorage.getItem('auth_token');
+                if (storedToken) {
+                    headers.set("Authorization", `Bearer ${storedToken}`);
+                    console.log('[MoneaClient] Using Authorization header with stored token');
+                }
+            } catch (e) {
+                console.warn('[MoneaClient] Could not read auth_token from sessionStorage:', e);
+            }
         }
 
         const response = await fetch(getApiUrl(path), { 
@@ -118,7 +132,7 @@ async function request<T>(
         }
 
         if (!response.ok) {
-            notifyAuthExpired(path, response.status);
+            notifyAuthExpired(path, response.status, requestStartedAt);
             let normalizedError: string = `Request failed with status ${response.status}`;
             if (data && typeof data === 'object' && 'error' in data) {
                 const apiError = data.error;

@@ -46,7 +46,7 @@ export function FAQ() {
                         >
                             <button
                                 onClick={() => setOpenIdx(openIdx === idx ? null : idx)}
-                                className="w-full px-8 py-7 text-left flex items-center justify-between gap-6 focus:outline-none group/faq"
+                                className="w-full px-8 py-7 text-left flex items-center justify-between gap-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring group/faq"
                             >
                                 <span className={cn("font-bold font-kantumruy text-lg sm:text-xl transition-colors duration-300 tracking-tight", openIdx === idx ? "text-foreground" : "text-muted-foreground group-hover/faq:text-foreground")}>{faq.q}</span>
                                 <span className={cn("shrink-0 w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-500", openIdx === idx ? "rotate-180 border-primary bg-primary text-primary-foreground" : "border-border bg-muted text-sage group-hover/faq:scale-110")}>

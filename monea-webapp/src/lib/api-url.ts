@@ -57,8 +57,16 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
     return requestPromises.get(cacheKey)!.then((r: Response) => r.clone());
   }
   
+  // Include token from sessionStorage as Bearer auth if available
+  const token = typeof window !== 'undefined' ? sessionStorage.getItem('auth_token') : null;
+  // Preserve existing headers (could be undefined, object, or Headers instance)
+  const initHeaders = init?.headers instanceof Headers ? init.headers : new Headers(init?.headers);
+  if (token) {
+    initHeaders.set('Authorization', `Bearer ${token}`);
+  }
   const fetchPromise = fetch(url, {
     ...init,
+    headers: initHeaders,
     credentials: 'include',
     // Mobile optimizations
     cache: method === 'GET' ? 'force-cache' : 'no-cache',

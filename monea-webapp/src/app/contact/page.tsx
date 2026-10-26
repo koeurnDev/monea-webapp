@@ -22,14 +22,16 @@ export default function ContactPage() {
                 <meta property="og:url" content="https://moneoez.com/contact" />
                 <meta property="og:title" content="MONEO | Contact Us | ទាក់ទង MONEO" />
                 <meta property="og:description" content="ទាក់ទងក្រុមការងារ MONEO សម្រាប់សំណួរ និងព័ត៌មានបន្ថែម។" />
-                <meta property="og:image" content="https://moneoez.com/icons/logomoneo.jpg" />
-                <meta property="og:image:type" content="image/jpeg" />
+                <meta property="og:image" content="https://moneoez.com/icons/SE.png" />
+                <meta property="og:image:type" content="image/png" />
+                <meta property="og:image:width" content="1200" />
+                <meta property="og:image:height" content="630" />
                 <meta property="og:image:alt" content="MONEO contact and support" />
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:url" content="https://moneoez.com/contact" />
                 <meta name="twitter:title" content="MONEO | Contact Us | ទាក់ទង MONEO" />
                 <meta name="twitter:description" content="ទាក់ទងក្រុមការងារ MONEO សម្រាប់សំណួរ និងព័ត៌មានបន្ថែម។" />
-                <meta name="twitter:image" content="https://moneoez.com/icons/logomoneo.jpg" />
+                <meta name="twitter:image" content="https://moneoez.com/icons/SE.png" />
                 <meta name="twitter:image:alt" content="MONEO contact and support" />
             </Helmet>
             <PageTransition>
